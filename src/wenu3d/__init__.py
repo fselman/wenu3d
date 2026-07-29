@@ -1,8 +1,9 @@
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .curves import Meridian, Parallel
-from .grid import GridStyle, SphericalGrid, GridLabel, GridRenderResult
-from .labels import LabelLayer
-from .scene import CelestialScene
+from .grid import GridStyle, GridCurveObject, GridLayer
+from .layer import Layer
+from .scene_object import SceneObject
+from .scene import CelestialScene, SceneGraph
 from .style import SceneStyle
 
 __all__ = [
@@ -12,10 +13,11 @@ __all__ = [
     "Meridian",
     "Parallel",
     "GridStyle",
-    "SphericalGrid",
-    "GridLabel",
-    "GridRenderResult",
-    "LabelLayer",
+    "GridCurveObject",
+    "GridLayer",
+    "Layer",
+    "SceneObject",
     "CelestialScene",
+    "SceneGraph",
     "SceneStyle",
 ]

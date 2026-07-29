@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from collections.abc import Sequence
+
 import numpy as np
 import pyvista as pv
 
-from .frames import SphericalFrame
 from .curves import Meridian, Parallel
+from .frames import SphericalFrame
 from .rendering import add_tube
+from .scene_object import SceneObject
+from .layer import Layer
 
 
 @dataclass
@@ -17,123 +20,128 @@ class GridStyle:
     minor_radius: float = 0.0025
     major_opacity: float = 0.82
     minor_opacity: float = 0.33
-
-    label_color: str | None = None
     label_format: str = "{value:g} deg"
     label_offset: float = 0.025
 
 
 @dataclass
-class GridLabel:
-    text: str
-    position: np.ndarray
+class GridCurveObject(SceneObject):
+    frame: SphericalFrame | None = None
+    value_deg: float = 0.0
+    radius: float = 1.0
+    tube_radius: float = 0.003
+    color: str = "#666666"
+    kind: str = "meridian"
+
+    def build(self, plotter: pv.Plotter) -> None:
+        if self.frame is None:
+            raise ValueError("GridCurveObject requires a frame.")
+
+        if self.kind == "meridian":
+            points = Meridian(self.frame, self.value_deg).points(self.radius)
+        elif self.kind == "parallel":
+            points = Parallel(self.frame, self.value_deg).points(self.radius)
+        else:
+            raise ValueError(f"Unsupported grid curve kind: {self.kind}")
+
+        actor = add_tube(
+            plotter,
+            points,
+            color=self.color,
+            radius=self.tube_radius,
+            opacity=self.opacity,
+            name=self.name,
+        )
+        self.add_actor(actor)
 
 
 @dataclass
-class GridRenderResult:
-    actors: list[pv.Actor] = field(default_factory=list)
-    labels: list[GridLabel] = field(default_factory=list)
+class GridLayer(Layer):
+    """
+    Grid layer whose meridians and parallels are individually addressable.
 
+    Example:
+        grid.meridians[90].set_visible(False)
+        grid.parallels[-30].set_visible(False)
+    """
 
-@dataclass
-class SphericalGrid:
-    frame: SphericalFrame
-    meridians_deg: Sequence[float]
-    parallels_deg: Sequence[float]
-
+    frame: SphericalFrame | None = None
+    meridians_deg: Sequence[float] = field(default_factory=tuple)
+    parallels_deg: Sequence[float] = field(default_factory=tuple)
     major_meridians_deg: Sequence[float] = field(default_factory=tuple)
     major_parallels_deg: Sequence[float] = field(default_factory=tuple)
-
-    # Only these selected curves receive labels. Empty means no labels.
-    labeled_meridians_deg: Sequence[float] = field(default_factory=tuple)
-    labeled_parallels_deg: Sequence[float] = field(default_factory=tuple)
-
-    # Where labels are placed along each curve.
-    meridian_label_latitude_deg: float = 6.0
-    parallel_label_longitude_deg: float = 12.0
-
     style: GridStyle = field(default_factory=GridStyle)
     radius: float = 1.0
+
+    meridians: dict[float, GridCurveObject] = field(
+        default_factory=dict,
+        init=False,
+    )
+    parallels: dict[float, GridCurveObject] = field(
+        default_factory=dict,
+        init=False,
+    )
+
+    def __post_init__(self) -> None:
+        if self.frame is None:
+            raise ValueError("GridLayer requires a spherical frame.")
+        self._create_curve_objects()
 
     @staticmethod
     def _contains(value: float, values: Sequence[float]) -> bool:
         return any(np.isclose(value, item, atol=1e-9) for item in values)
 
-    def _label_text(self, kind: str, value: float) -> str:
-        return self.style.label_format.format(
-            kind=kind,
-            value=value,
-            frame=self.frame.name,
-        )
+    def _create_curve_objects(self) -> None:
+        self.objects.clear()
+        self.meridians.clear()
+        self.parallels.clear()
 
-    def draw(self, plotter: pv.Plotter) -> GridRenderResult:
-        result = GridRenderResult()
-        label_radius = self.radius + self.style.label_offset
-
-        for lon in self.meridians_deg:
-            lon = float(lon)
-            major = self._contains(lon, self.major_meridians_deg)
-
-            result.actors.append(
-                add_tube(
-                    plotter,
-                    Meridian(self.frame, lon).points(self.radius),
-                    color=self.style.color,
-                    radius=(
-                        self.style.major_radius
-                        if major else self.style.minor_radius
-                    ),
-                    opacity=(
-                        self.style.major_opacity
-                        if major else self.style.minor_opacity
-                    ),
-                )
+        for value in self.meridians_deg:
+            value = float(value)
+            major = self._contains(value, self.major_meridians_deg)
+            obj = GridCurveObject(
+                name=f"{self.name}.meridian.{value:g}",
+                frame=self.frame,
+                value_deg=value,
+                radius=self.radius,
+                tube_radius=(
+                    self.style.major_radius if major
+                    else self.style.minor_radius
+                ),
+                color=self.style.color,
+                opacity=(
+                    self.style.major_opacity if major
+                    else self.style.minor_opacity
+                ),
+                kind="meridian",
             )
+            self.meridians[value] = obj
+            self.add(obj)
 
-            if self._contains(lon, self.labeled_meridians_deg):
-                position = self.frame.point(
-                    lon,
-                    self.meridian_label_latitude_deg,
-                    radius=label_radius,
-                )
-                result.labels.append(
-                    GridLabel(
-                        text=self._label_text("meridian", lon),
-                        position=np.asarray(position),
-                    )
-                )
-
-        for lat in self.parallels_deg:
-            lat = float(lat)
-            major = self._contains(lat, self.major_parallels_deg)
-
-            result.actors.append(
-                add_tube(
-                    plotter,
-                    Parallel(self.frame, lat).points(self.radius),
-                    color=self.style.color,
-                    radius=(
-                        self.style.major_radius
-                        if major else self.style.minor_radius
-                    ),
-                    opacity=(
-                        self.style.major_opacity
-                        if major else self.style.minor_opacity
-                    ),
-                )
+        for value in self.parallels_deg:
+            value = float(value)
+            major = self._contains(value, self.major_parallels_deg)
+            obj = GridCurveObject(
+                name=f"{self.name}.parallel.{value:g}",
+                frame=self.frame,
+                value_deg=value,
+                radius=self.radius,
+                tube_radius=(
+                    self.style.major_radius if major
+                    else self.style.minor_radius
+                ),
+                color=self.style.color,
+                opacity=(
+                    self.style.major_opacity if major
+                    else self.style.minor_opacity
+                ),
+                kind="parallel",
             )
+            self.parallels[value] = obj
+            self.add(obj)
 
-            if self._contains(lat, self.labeled_parallels_deg):
-                position = self.frame.point(
-                    self.parallel_label_longitude_deg,
-                    lat,
-                    radius=label_radius,
-                )
-                result.labels.append(
-                    GridLabel(
-                        text=self._label_text("parallel", lat),
-                        position=np.asarray(position),
-                    )
-                )
+    def set_meridian_visible(self, value_deg: float, visible: bool) -> None:
+        self.meridians[float(value_deg)].set_visible(visible, render=False)
 
-        return result
+    def set_parallel_visible(self, value_deg: float, visible: bool) -> None:
+        self.parallels[float(value_deg)].set_visible(visible, render=False)
