@@ -108,6 +108,7 @@ class CelestialScene:
         self.graph = SceneGraph()
         self.local_group = ActorScaleGroup()
         self._local_scale = 1.0
+        self._title_actor: object | None = None
         self.controls = ControlManager(
             plotter=self.plotter,
             window_size=window_size,
@@ -588,13 +589,24 @@ class CelestialScene:
         """Restore the canonical illustration camera and refresh the shell."""
         self.set_camera(self.canonical_camera)
 
+    def _ensure_title(self) -> None:
+        if self._title_actor is None:
+            self._title_actor = self.plotter.add_text(
+                f"Celestial grids — {self.location_name}",
+                position="upper_left",
+                font_size=18,
+                color=self.style.text_color,
+            )
+
+    def render(self) -> None:
+        """Refresh derived scene state and render exactly once."""
+        self._ensure_title()
+        self.controls.sync(render=False)
+        self._refresh_celestial_sphere()
+        self.plotter.render()
+
     def show(self, *, screenshot: str | None = None) -> None:
-        self.plotter.add_text(
-            f"Celestial grids — {self.location_name}",
-            position="upper_left",
-            font_size=18,
-            color=self.style.text_color,
-        )
+        self.render()
         self.plotter.show(
             screenshot=screenshot,
             auto_close=False,
