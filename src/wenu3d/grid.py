@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pyvista as pv
 
+from .annotations import Annotation, AnnotationLayer, AnnotationStyle
 from .curves import Meridian, Parallel
 from .frames import SphericalFrame
 from .rendering import add_tube
@@ -168,3 +169,64 @@ class GridLayer(Layer):
     def set_all_parallels_visible(self, visible: bool) -> None:
         for parallel in self.parallels.values():
             parallel.set_visible(visible, render=False)
+
+    def make_label_layer(
+        self,
+        *,
+        name: str | None = None,
+        meridian_anchors: Mapping[float, float] | None = None,
+        parallel_anchors: Mapping[float, float] | None = None,
+        annotation_style: AnnotationStyle | None = None,
+    ) -> AnnotationLayer:
+        """
+        Create independently selectable labels for specified grid curves.
+
+        ``meridian_anchors`` maps meridian longitude to the latitude at which
+        its label is anchored. ``parallel_anchors`` maps parallel latitude to
+        its anchor longitude.
+        """
+        if self.frame is None:
+            raise ValueError("GridLayer requires a spherical frame.")
+
+        label_layer = AnnotationLayer(
+            name=name or f"{self.name}.labels",
+        )
+        text_style = annotation_style or AnnotationStyle(
+            color=self.style.color,
+        )
+
+        for raw_value, raw_latitude in (meridian_anchors or {}).items():
+            value = float(raw_value)
+            latitude = float(raw_latitude)
+            curve = self.meridians[value]
+            direction = self.frame.point(value, latitude, radius=1.0)
+            anchor = self.frame.point(value, latitude, radius=self.radius)
+            label_layer.add_annotation(
+                f"{label_layer.name}.meridian.{value:g}",
+                Annotation(
+                    text=self.style.label_format.format(value=value),
+                    anchor=anchor,
+                    offset=self.style.label_offset * direction,
+                    style=text_style,
+                    associated_with=curve.name,
+                ),
+            )
+
+        for raw_value, raw_longitude in (parallel_anchors or {}).items():
+            value = float(raw_value)
+            longitude = float(raw_longitude)
+            curve = self.parallels[value]
+            direction = self.frame.point(longitude, value, radius=1.0)
+            anchor = self.frame.point(longitude, value, radius=self.radius)
+            label_layer.add_annotation(
+                f"{label_layer.name}.parallel.{value:g}",
+                Annotation(
+                    text=self.style.label_format.format(value=value),
+                    anchor=anchor,
+                    offset=self.style.label_offset * direction,
+                    style=text_style,
+                    associated_with=curve.name,
+                ),
+            )
+
+        return label_layer
