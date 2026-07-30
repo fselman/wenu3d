@@ -7,7 +7,12 @@ import numpy as np
 import pyvista as pv
 
 
-from .controls import ControlManager, GridControlPanel
+from .annotations import AnnotationLayer
+from .controls import (
+    AnnotationControlPanel,
+    ControlManager,
+    GridControlPanel,
+)
 from .earth import realistic_earth
 from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
@@ -495,6 +500,17 @@ class CelestialScene:
         panel = GridControlPanel(
             plotter=self.plotter,
             grid=grid,
+        )
+        return self.controls.register_panel(panel)
+
+    def add_annotation_controls(
+        self,
+        *layers: AnnotationLayer,
+    ) -> AnnotationControlPanel:
+        panel = AnnotationControlPanel(
+            plotter=self.plotter,
+            layers=layers,
+            color=self.style.horizontal_grid_color,
         )
         return self.controls.register_panel(panel)
 

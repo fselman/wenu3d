@@ -86,49 +86,12 @@ scientific_callouts.add_annotation(
 )
 scene.add(scientific_callouts)
 
-
-def set_annotation_visibility(visible: bool) -> None:
-    horizontal_labels.set_visible(visible, render=False)
-    scientific_callouts.set_visible(visible, render=False)
-    scene.plotter.render()
-
-
-def set_annotation_size(scale: float) -> None:
-    horizontal_labels.set_font_size_scale(scale, render=False)
-    scientific_callouts.set_font_size_scale(scale, render=False)
-    scene.plotter.render()
-
-
-# M4 uses explicit widget positions. M5 will replace these with managed layout.
-scene.plotter.add_checkbox_button_widget(
-    callback=set_annotation_visibility,
-    value=True,
-    position=(360, 990),
-    size=22,
-    border_size=2,
-    color_on=scene.style.horizontal_grid_color,
-    color_off="#d4d4d4",
-    background_color="#f7f6f2",
-)
-scene.plotter.add_text(
-    "Mostrar anotaciones",
-    position=(389, 990),
-    font_size=11,
-    color=scene.style.text_color,
-)
-scene.plotter.add_slider_widget(
-    callback=set_annotation_size,
-    rng=(0.75, 2.50),
-    value=1.0,
-    title="Tamaño de anotaciones",
-    pointa=(0.62, 0.92),
-    pointb=(0.92, 0.92),
-    style="modern",
-    fmt="%.2f x",
-)
-
 scene.add_grid_controls(horizontal)
 scene.add_grid_controls(equatorial)
+scene.add_annotation_controls(
+    horizontal_labels,
+    scientific_callouts,
+)
 
 scene.add_global_controls()
 

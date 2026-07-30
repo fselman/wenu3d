@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Protocol, TypeVar
 
 import pyvista as pv
 
+from .annotations import AnnotationLayer
 from .grid import GridLayer
 
 
@@ -23,6 +24,112 @@ class ControlPanel(Protocol):
     def control_size(self) -> tuple[int, int]: ...
 
     def add(self) -> None: ...
+
+
+@dataclass
+class AnnotationControlPanel:
+    """Managed visibility and text-size controls for annotation layers."""
+
+    plotter: pv.Plotter
+    layers: Sequence[AnnotationLayer]
+
+    origin_x: int = 20
+    origin_y: int = 960
+
+    width: int = 270
+    height: int = 140
+    checkbox_size: int = 22
+    font_size: int = 11
+    color: str = "#506070"
+
+    widgets: list[object] = field(
+        default_factory=list,
+        init=False,
+    )
+
+    def __post_init__(self) -> None:
+        self.layers = tuple(self.layers)
+        if not self.layers:
+            raise ValueError(
+                "AnnotationControlPanel requires at least one layer."
+            )
+        if not all(
+            isinstance(layer, AnnotationLayer)
+            for layer in self.layers
+        ):
+            raise TypeError(
+                "Annotation controls require AnnotationLayer instances."
+            )
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    def add(self) -> None:
+        title = self.plotter.add_text(
+            "Anotaciones",
+            position=(self.origin_x, self.origin_y),
+            font_size=self.font_size + 2,
+            color="#202020",
+        )
+        self.widgets.append(title)
+
+        checkbox_y = self.origin_y - 38
+        checkbox = self.plotter.add_checkbox_button_widget(
+            callback=self._set_visible,
+            value=all(layer.visible for layer in self.layers),
+            position=(self.origin_x, checkbox_y),
+            size=self.checkbox_size,
+            border_size=2,
+            color_on=self.color,
+            color_off="#d4d4d4",
+            background_color="#f7f6f2",
+        )
+        self.widgets.append(checkbox)
+
+        label = self.plotter.add_text(
+            "Mostrar anotaciones",
+            position=(
+                self.origin_x + self.checkbox_size + 7,
+                checkbox_y,
+            ),
+            font_size=self.font_size,
+            color="#202020",
+        )
+        self.widgets.append(label)
+
+        window_width, window_height = (
+            float(value)
+            for value in self.plotter.window_size
+        )
+        slider_y = self.origin_y - 100
+        slider = self.plotter.add_slider_widget(
+            callback=self._set_font_size_scale,
+            rng=(0.75, 2.50),
+            value=self.layers[0].font_size_scale,
+            title="Tamaño de anotaciones",
+            pointa=(
+                (self.origin_x + 10) / window_width,
+                slider_y / window_height,
+            ),
+            pointb=(
+                (self.origin_x + self.width - 10) / window_width,
+                slider_y / window_height,
+            ),
+            style="modern",
+            fmt="%.2f x",
+        )
+        self.widgets.append(slider)
+
+    def _set_visible(self, visible: bool) -> None:
+        for layer in self.layers:
+            layer.set_visible(visible, render=False)
+        self.plotter.render()
+
+    def _set_font_size_scale(self, scale: float) -> None:
+        for layer in self.layers:
+            layer.set_font_size_scale(scale, render=False)
+        self.plotter.render()
 
 
 @dataclass
