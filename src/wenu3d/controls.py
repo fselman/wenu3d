@@ -360,16 +360,42 @@ class GridControlPanel:
         default_factory=list,
         init=False,
     )
+    _grid_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _meridians_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _parallels_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _meridian_widgets: dict[float, object] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
+    _parallel_widgets: dict[float, object] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
+        self.grid_enabled = self.grid.visible
         self.meridian_states = {
-            float(value): True
-            for value in self.grid.meridians
+            float(value): curve.visible
+            for value, curve in self.grid.meridians.items()
         }
 
         self.parallel_states = {
-            float(value): True
-            for value in self.grid.parallels
+            float(value): curve.visible
+            for value, curve in self.grid.parallels.items()
         }
 
     @property
@@ -409,7 +435,9 @@ class GridControlPanel:
             callback=self._set_grid_enabled,
             indent=0,
             border_size=2,
+            value=self.grid_enabled,
         )
+        self._grid_widget = self.widgets[-1]
 
         y -= 7
 
@@ -419,7 +447,12 @@ class GridControlPanel:
             y=y,
             master_callback=self._set_meridians_enabled,
             item_callback_factory=self._meridian_callback,
+            states=self.meridian_states,
+            widget_map=self._meridian_widgets,
         )
+        self._meridians_widget = self.widgets[
+            -(len(self.meridian_states) + 1)
+        ]
 
         y -= 9
 
@@ -429,7 +462,12 @@ class GridControlPanel:
             y=y,
             master_callback=self._set_parallels_enabled,
             item_callback_factory=self._parallel_callback,
+            states=self.parallel_states,
+            widget_map=self._parallel_widgets,
         )
+        self._parallels_widget = self.widgets[
+            -(len(self.parallel_states) + 1)
+        ]
 
     def _add_checkbox_row(
         self,
@@ -439,12 +477,13 @@ class GridControlPanel:
         callback: CheckboxCallback,
         indent: int,
         border_size: int,
+        value: bool,
     ) -> int:
         x = self.origin_x + indent
 
         widget = self.plotter.add_checkbox_button_widget(
             callback=callback,
-            value=True,
+            value=value,
             position=(x, y),
             size=self.checkbox_size,
             border_size=border_size,
@@ -478,6 +517,8 @@ class GridControlPanel:
             [float],
             CheckboxCallback,
         ],
+        states: dict[float, bool],
+        widget_map: dict[float, object],
     ) -> int:
         y = self._add_checkbox_row(
             title=title,
@@ -485,6 +526,7 @@ class GridControlPanel:
             callback=master_callback,
             indent=0,
             border_size=2,
+            value=True,
         )
 
         for raw_value in values:
@@ -496,13 +538,16 @@ class GridControlPanel:
                 callback=item_callback_factory(value),
                 indent=self.indent,
                 border_size=1,
+                value=states[value],
             )
+            widget_map[value] = self.widgets[-1]
 
         return y
 
     def _set_grid_enabled(self, enabled: bool) -> None:
         self.grid_enabled = bool(enabled)
-        self._apply_all_visibility()
+        self.grid.set_visible(self.grid_enabled, render=False)
+        self.plotter.render()
 
     def _set_meridians_enabled(self, enabled: bool) -> None:
         self.meridians_enabled = bool(enabled)
@@ -572,8 +617,7 @@ class GridControlPanel:
         render: bool = True,
     ) -> None:
         visible = (
-            self.grid_enabled
-            and self.meridians_enabled
+            self.meridians_enabled
             and self.meridian_states[value]
         )
 
@@ -592,8 +636,7 @@ class GridControlPanel:
         render: bool = True,
     ) -> None:
         visible = (
-            self.grid_enabled
-            and self.parallels_enabled
+            self.parallels_enabled
             and self.parallel_states[value]
         )
 
@@ -604,6 +647,55 @@ class GridControlPanel:
 
         if render:
             self.plotter.render()
+
+    def sync_from_model(self) -> None:
+        """
+        Update grid and curve widgets from their current model state.
+
+        A disabled family retains its remembered individual selections.
+        Those selections are restored when the family is enabled again.
+        """
+        self.grid_enabled = self.grid.visible
+        self._set_widget_state(
+            self._grid_widget,
+            self.grid_enabled,
+        )
+        self._set_widget_state(
+            self._meridians_widget,
+            self.meridians_enabled,
+        )
+        self._set_widget_state(
+            self._parallels_widget,
+            self.parallels_enabled,
+        )
+
+        if self.meridians_enabled:
+            for value, curve in self.grid.meridians.items():
+                self.meridian_states[float(value)] = curve.visible
+
+        if self.parallels_enabled:
+            for value, curve in self.grid.parallels.items():
+                self.parallel_states[float(value)] = curve.visible
+
+        for value, selected in self.meridian_states.items():
+            self._set_widget_state(
+                self._meridian_widgets.get(value),
+                selected,
+            )
+
+        for value, selected in self.parallel_states.items():
+            self._set_widget_state(
+                self._parallel_widgets.get(value),
+                selected,
+            )
+
+    @staticmethod
+    def _set_widget_state(
+        widget: object | None,
+        enabled: bool,
+    ) -> None:
+        if widget is not None:
+            widget.GetRepresentation().SetState(int(enabled))
 
 
 @dataclass(frozen=True)

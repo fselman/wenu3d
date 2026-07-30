@@ -73,6 +73,78 @@ def test_scene_registers_grid_panel_without_coordinates() -> None:
     scene.controls.register_panel.assert_called_once_with(panel)
 
 
+def test_grid_panel_uses_initial_model_visibility() -> None:
+    grid = make_grid()
+    grid.set_visible(False, render=False)
+    grid.set_meridian_visible(90.0, False)
+    plotter = Mock()
+    plotter.add_checkbox_button_widget.side_effect = [
+        Mock()
+        for _ in range(6)
+    ]
+
+    panel = GridControlPanel(plotter=plotter, grid=grid)
+    panel.add()
+
+    values = [
+        call.kwargs["value"]
+        for call in plotter.add_checkbox_button_widget.call_args_list
+    ]
+    assert values == [False, True, True, False, True, True]
+
+
+def test_grid_panel_hides_layer_without_losing_curve_selections() -> None:
+    grid = make_grid()
+    grid.set_meridian_visible(90.0, False)
+    panel = GridControlPanel(plotter=Mock(), grid=grid)
+
+    panel._set_grid_enabled(False)
+
+    assert not grid.visible
+    assert grid.meridians[0.0].visible
+    assert not grid.meridians[90.0].visible
+    assert grid.parallels[0.0].visible
+    panel.plotter.render.assert_called_once_with()
+
+
+def test_grid_panel_syncs_external_grid_and_curve_changes() -> None:
+    grid = make_grid()
+    plotter = Mock()
+    widgets = [Mock() for _ in range(6)]
+    plotter.add_checkbox_button_widget.side_effect = widgets
+    panel = GridControlPanel(plotter=plotter, grid=grid)
+    panel.add()
+
+    grid.set_visible(False, render=False)
+    grid.set_meridian_visible(90.0, False)
+    grid.set_parallel_visible(0.0, False)
+    panel.sync_from_model()
+
+    assert not panel.grid_enabled
+    assert panel.meridian_states == {0.0: True, 90.0: False}
+    assert panel.parallel_states == {0.0: False}
+    widgets[0].GetRepresentation().SetState.assert_called_with(0)
+    widgets[3].GetRepresentation().SetState.assert_called_with(0)
+    widgets[5].GetRepresentation().SetState.assert_called_with(0)
+
+
+def test_grid_panel_sync_preserves_disabled_family_selections() -> None:
+    grid = make_grid()
+    plotter = Mock()
+    plotter.add_checkbox_button_widget.side_effect = [
+        Mock()
+        for _ in range(6)
+    ]
+    panel = GridControlPanel(plotter=plotter, grid=grid)
+    panel.add()
+
+    panel._set_meridians_enabled(False)
+    panel.sync_from_model()
+    panel._set_meridians_enabled(True)
+
+    assert all(curve.visible for curve in grid.meridians.values())
+
+
 def test_control_manager_stacks_then_wraps_panels() -> None:
     manager, _ = make_manager()
     first = FakePanel()
