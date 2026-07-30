@@ -104,11 +104,16 @@ class AnnotationObject(SceneObject):
     """Lifecycle-managed PyVista representation of one annotation."""
 
     annotation: Annotation | None = None
+    font_size_scale: float = 1.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.annotation, Annotation):
             raise TypeError(
                 "AnnotationObject annotation must be an Annotation."
+            )
+        if not np.isfinite(self.font_size_scale) or self.font_size_scale <= 0:
+            raise ValueError(
+                "Annotation font_size_scale must be finite and greater than zero."
             )
         self.visible = self.visible and self.annotation.visible
 
@@ -123,7 +128,13 @@ class AnnotationObject(SceneObject):
             [self.annotation.position],
             [self.annotation.text],
             bold=self.annotation.style.bold,
-            font_size=self.annotation.style.font_size,
+            font_size=max(
+                1,
+                round(
+                    self.annotation.style.font_size
+                    * self.font_size_scale
+                ),
+            ),
             text_color=self.annotation.style.color,
             show_points=False,
             shape=None,
@@ -139,6 +150,20 @@ class AnnotationObject(SceneObject):
 class AnnotationLayer(Layer):
     """A layer of independently addressable annotation objects."""
 
+    font_size_scale: float = 1.0
+
+    def __post_init__(self) -> None:
+        self._validate_font_size_scale(self.font_size_scale)
+
+    @staticmethod
+    def _validate_font_size_scale(scale: float) -> float:
+        value = float(scale)
+        if not np.isfinite(value) or value <= 0:
+            raise ValueError(
+                "Annotation font size scale must be finite and greater than zero."
+            )
+        return value
+
     def add_annotation(
         self,
         name: str,
@@ -147,6 +172,26 @@ class AnnotationLayer(Layer):
         obj = AnnotationObject(
             name=name,
             annotation=annotation,
+            font_size_scale=self.font_size_scale,
         )
         self.add(obj)
         return obj
+
+    def set_font_size_scale(
+        self,
+        scale: float,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Scale annotation text and safely rebuild attached label actors."""
+        value = self._validate_font_size_scale(scale)
+        self.font_size_scale = value
+
+        for obj in self.objects:
+            if isinstance(obj, AnnotationObject):
+                obj.font_size_scale = value
+
+        plotter = self.attached_plotter
+        if plotter is not None:
+            self.build(plotter)
+            self._request_render(render)
