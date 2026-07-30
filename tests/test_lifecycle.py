@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pyvista as pv
 
 from wenu3d.frames import horizontal_frame
@@ -106,6 +108,27 @@ def test_child_change_cannot_override_hidden_layer() -> None:
         grid.set_visible(True, render=False)
         assert child.effective_visible is True
         assert child.actors[0].GetVisibility()
+    finally:
+        plotter.close()
+
+
+def test_visibility_and_opacity_honor_render_argument() -> None:
+    plotter = pv.Plotter(off_screen=True)
+    grid = make_grid()
+    child = grid.meridians[0.0]
+
+    try:
+        grid.build(plotter)
+        with patch.object(plotter, "render") as render:
+            child.set_visible(False)
+            child.set_opacity(0.25)
+
+            assert render.call_count == 2
+
+            child.set_visible(True, render=False)
+            child.set_opacity(0.5, render=False)
+
+            assert render.call_count == 2
     finally:
         plotter.close()
 

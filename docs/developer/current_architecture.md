@@ -1,6 +1,6 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.1  
+**Version:** 0.2
 **Date:** 2026-07-30  
 **Status:** Description of `feature/interactive-grid-controls`
 
@@ -74,15 +74,20 @@ CelestialScene
                 PyVista Actor
 ```
 
-`SceneObject` owns a name, visibility, opacity, and actors. Subclasses implement
-`build(plotter)`.
+`SceneObject` owns a name, independent and effective visibility, opacity,
+actors, and its current plotter attachment. Subclasses implement
+`build(plotter)`. Rebuilding detaches previously owned actors first, and
+`detach()` removes those actors from the plotter.
 
 `Layer` is a composite `SceneObject`. It owns children and delegates building
-and visibility, while also duplicating child actor references in its own actor
-list.
+and lifecycle, while also duplicating child actor references in its own actor
+list. Layer visibility is inherited: hiding a layer does not overwrite a
+child's own visibility selection, and a child cannot expose itself while an
+ancestor layer remains hidden.
 
 `SceneGraph` is a name-indexed dictionary of layers with duplicate-name
-protection and lookup. It has no remove, ordering, iteration, or teardown API.
+protection and lookup. It preserves insertion order, supports ordered
+iteration and length, and provides actor-safe `remove()` and `clear()`.
 
 Only the grid system follows this object model. The shell, Earth, plane,
 observer, arrows, and axis are created directly by `CelestialScene`.
@@ -146,12 +151,14 @@ opacities. Other rendering and widget constants remain hard-coded.
 uses `auto_close=False`.
 
 There is no separate API for deterministic batch rendering, headless export,
-transparent backgrounds, camera presets, object removal, safe rebuilding, or
-resource cleanup.
+transparent backgrounds, camera presets, complete scene cleanup, or resource
+cleanup.
 
-The `render` argument accepted by visibility methods does not itself trigger a
-render. Rebuilding can accumulate actors because old actors are not removed
-from the plotter.
+Visibility, opacity, detach, remove, and clear operations honor their `render`
+argument. The current grid object path supports safe detach and rebuild without
+actor accumulation. The shell camera callback remains embedded in
+`CelestialScene`; moving and managing that callback belongs to the explicit
+shell-object work planned for M7.
 
 ## 10. Annotation state
 
@@ -174,8 +181,10 @@ An off-screen rendering smoke test also verifies that a small `GridLayer`
 builds three PyVista actors and produces a nonempty PNG with the requested
 dimensions.
 
-The repository does not yet automatically verify Earth orientation, scene
-lifecycle, repeated builds, or canonical example execution.
+M3 lifecycle tests verify safe detach, rebuild on the same or another plotter,
+stable actor counts, graph ordering/removal/clearing, inherited visibility,
+retained child selections, and render requests. The repository does not yet
+automatically verify Earth orientation or canonical example execution.
 
 ## 12. Strengths
 
@@ -191,10 +200,10 @@ lifecycle, repeated builds, or canonical example execution.
 1. Annotations are not yet implemented in the current object model.
 2. Most scene elements bypass the graph.
 3. `CelestialScene` has too many responsibilities.
-4. Actor lifecycle is undefined.
-5. Rendering semantics are inconsistent.
+4. Shell callback lifecycle remains embedded in `CelestialScene`.
+5. Full-scene cleanup and deterministic export are not yet available.
 6. Controls do not scale automatically.
-7. Full-scene rendering and lifecycle tests do not yet exist.
+7. Full-scene rendering tests do not yet exist.
 8. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
