@@ -1,5 +1,10 @@
+from pathlib import Path
 from unittest.mock import Mock
+from unittest.mock import patch
 
+import numpy as np
+
+from wenu3d import CameraState
 from wenu3d.scene import CelestialScene
 
 
@@ -62,3 +67,77 @@ def test_show_uses_render_path_before_interaction() -> None:
         screenshot="scene.png",
         auto_close=False,
     )
+
+
+def test_scene_configures_plotter_for_off_screen_rendering() -> None:
+    with (
+        patch("wenu3d.scene.pv.Plotter") as plotter_class,
+        patch.object(CelestialScene, "_build_base_scene"),
+    ):
+        CelestialScene(
+            latitude_deg=-32.45,
+            longitude_deg=-71.23,
+            location_name="La Ligua",
+            window_size=(1200, 800),
+            off_screen=True,
+        )
+
+    plotter_class.assert_called_once_with(
+        window_size=(1200, 800),
+        off_screen=True,
+    )
+
+
+def test_save_renders_opaque_image_at_configured_size() -> None:
+    scene = make_scene()
+    scene.render = Mock()
+    image = np.zeros((800, 1200, 3), dtype=np.uint8)
+    scene.plotter.screenshot.return_value = image
+    output = Path("illustration.png")
+
+    result = scene.save(output)
+
+    scene.render.assert_called_once_with()
+    scene.plotter.screenshot.assert_called_once_with(
+        filename=output,
+        transparent_background=False,
+        return_img=True,
+    )
+    assert result is image
+
+
+def test_save_applies_explicit_camera_before_rendering() -> None:
+    scene = make_scene()
+    scene.set_camera = Mock()
+    scene.render = Mock()
+    scene.plotter.screenshot.return_value = np.zeros(
+        (2, 3, 3),
+        dtype=np.uint8,
+    )
+    state = CameraState(
+        position=(3.0, -2.0, 1.0),
+        focal_point=(0.0, 0.0, 0.0),
+        view_up=(0.0, 0.0, 1.0),
+    )
+
+    scene.save("camera.png", camera_state=state)
+
+    scene.set_camera.assert_called_once_with(
+        state,
+        render=False,
+    )
+    scene.render.assert_called_once_with()
+
+
+def test_repeated_save_reuses_scene_content() -> None:
+    scene = make_scene()
+    scene.plotter.screenshot.return_value = np.zeros(
+        (2, 3, 3),
+        dtype=np.uint8,
+    )
+
+    scene.save("first.png")
+    scene.save("second.png")
+
+    scene.plotter.add_text.assert_called_once()
+    assert scene.plotter.screenshot.call_count == 2

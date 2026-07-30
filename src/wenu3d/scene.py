@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 import pyvista as pv
@@ -91,6 +92,7 @@ class CelestialScene:
         sphere_radius: float = 1.0,
         style: SceneStyle | None = None,
         window_size=(1600, 1150),
+        off_screen: bool = False,
     ) -> None:
         self.latitude_deg = latitude_deg
         self.longitude_deg = longitude_deg
@@ -102,7 +104,10 @@ class CelestialScene:
         self.horizontal = horizontal_frame()
         self.equatorial = equatorial_frame(latitude_deg)
 
-        self.plotter = pv.Plotter(window_size=window_size)
+        self.plotter = pv.Plotter(
+            window_size=window_size,
+            off_screen=off_screen,
+        )
         self.plotter.set_background(self.style.background)
 
         self.graph = SceneGraph()
@@ -604,6 +609,26 @@ class CelestialScene:
         self.controls.sync(render=False)
         self._refresh_celestial_sphere()
         self.plotter.render()
+
+    def save(
+        self,
+        path: str | Path,
+        *,
+        camera_state: CameraState | None = None,
+    ) -> np.ndarray:
+        """Render and save an opaque image without closing the scene."""
+        if camera_state is not None:
+            self.set_camera(camera_state, render=False)
+
+        self.render()
+        image = self.plotter.screenshot(
+            filename=Path(path),
+            transparent_background=False,
+            return_img=True,
+        )
+        if image is None:
+            raise RuntimeError("PyVista did not return the saved image.")
+        return image
 
     def show(self, *, screenshot: str | None = None) -> None:
         self.render()
