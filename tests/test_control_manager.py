@@ -33,6 +33,7 @@ def make_manager(
         plotter=plotter,
         window_size=window_size,
         margin=20,
+        top_margin=20,
         panel_gap=10,
     )
     return manager, plotter
@@ -112,6 +113,35 @@ def test_control_manager_rejects_panel_that_cannot_fit() -> None:
 
     assert panel.add_count == 0
     assert manager.panels == []
+
+
+def test_control_manager_reserves_top_margin() -> None:
+    plotter = Mock()
+    manager = ControlManager(
+        plotter=plotter,
+        window_size=(500, 400),
+        margin=20,
+        top_margin=70,
+    )
+    panel = FakePanel(control_size=(100, 100))
+
+    manager.register_panel(panel)
+
+    assert panel.origin_y == 330
+
+
+def test_panel_placement_detects_rectangle_overlap() -> None:
+    first = PanelPlacement(20, 380, 100, 150)
+
+    assert first.overlaps(
+        PanelPlacement(80, 300, 100, 100)
+    )
+    assert not first.overlaps(
+        PanelPlacement(130, 380, 100, 150)
+    )
+    assert not first.overlaps(
+        PanelPlacement(20, 220, 100, 150)
+    )
 
 
 def test_control_manager_batches_nested_render_requests() -> None:

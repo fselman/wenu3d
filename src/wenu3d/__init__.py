@@ -7,6 +7,7 @@ from .annotations import (
 from .controls import (
     AnnotationControlPanel,
     ControlManager,
+    GlobalControlPanel,
     PanelPlacement,
 )
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
@@ -24,6 +25,7 @@ __all__ = [
     "AnnotationStyle",
     "AnnotationControlPanel",
     "ControlManager",
+    "GlobalControlPanel",
     "PanelPlacement",
     "SphericalFrame",
     "horizontal_frame",

@@ -18,7 +18,9 @@ def make_plotter() -> Mock:
     plotter.window_size = (1800, 1200)
     plotter.add_text.return_value = object()
     plotter.add_checkbox_button_widget.return_value = object()
-    plotter.add_slider_widget.return_value = object()
+    slider = Mock()
+    slider.GetRepresentation.return_value = Mock()
+    plotter.add_slider_widget.return_value = slider
     return plotter
 
 
@@ -36,7 +38,7 @@ def test_annotation_panel_reports_managed_size() -> None:
         layers=make_layers(),
     )
 
-    assert panel.control_size == (270, 140)
+    assert panel.control_size == (300, 160)
 
 
 def test_annotation_panel_adds_controls_at_assigned_position() -> None:
@@ -56,10 +58,16 @@ def test_annotation_panel_adds_controls_at_assigned_position() -> None:
     assert checkbox["position"] == (182, 1142)
     assert checkbox["value"] is True
     assert slider["pointa"] == pytest.approx(
-        (192 / 1800, 1080 / 1200)
+        (192 / 1800, 1068 / 1200)
     )
     assert slider["pointb"] == pytest.approx(
-        (442 / 1800, 1080 / 1200)
+        (472 / 1800, 1068 / 1200)
+    )
+    assert slider["title_height"] == 0.014
+    (
+        plotter.add_slider_widget.return_value
+        .GetRepresentation.return_value
+        .SetLabelHeight.assert_called_once_with(0.014)
     )
     assert len(panel.widgets) == 4
 

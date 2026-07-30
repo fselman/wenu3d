@@ -11,6 +11,7 @@ from .annotations import AnnotationLayer
 from .controls import (
     AnnotationControlPanel,
     ControlManager,
+    GlobalControlPanel,
     GridControlPanel,
 )
 from .earth import realistic_earth
@@ -514,36 +515,22 @@ class CelestialScene:
         )
         return self.controls.register_panel(panel)
 
-    def add_global_controls(self) -> None:
-        def set_local_scale(value: float) -> None:
-            self.local_group.set_scale(value)
-            self.plotter.render()
-
-        def set_sphere_presence(value: float) -> None:
-            self._sphere_presence = float(value)
-            self._refresh_celestial_sphere()
-            self.plotter.render()
-
-        self.plotter.add_slider_widget(
-            set_sphere_presence,
-            rng=(0.20, 3.00),
-            value=1.0,
-            title="Celestial sphere",
-            pointa=(0.08, 0.115),
-            pointb=(0.42, 0.115),
-            style="modern",
-            fmt="%.2f x",
+    def add_global_controls(self) -> GlobalControlPanel:
+        panel = GlobalControlPanel(
+            plotter=self.plotter,
+            set_sphere_presence=self._set_sphere_presence,
+            set_local_scale=self._set_local_scale,
         )
-        self.plotter.add_slider_widget(
-            set_local_scale,
-            rng=(0.05, 2.00),
-            value=1.0,
-            title="Earth / plane / observer",
-            pointa=(0.58, 0.115),
-            pointb=(0.92, 0.115),
-            style="modern",
-            fmt="%.2f x",
-        )
+        return self.controls.register_panel(panel)
+
+    def _set_local_scale(self, value: float) -> None:
+        self.local_group.set_scale(value)
+        self.plotter.render()
+
+    def _set_sphere_presence(self, value: float) -> None:
+        self._sphere_presence = float(value)
+        self._refresh_celestial_sphere()
+        self.plotter.render()
 
     def _set_camera(self) -> None:
         self.plotter.enable_lightkit()

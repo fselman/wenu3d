@@ -12,6 +12,7 @@ from .grid import GridLayer
 
 
 CheckboxCallback = Callable[[bool], None]
+SliderCallback = Callable[[float], None]
 
 PanelT = TypeVar("PanelT", bound="ControlPanel")
 
@@ -26,6 +27,12 @@ class ControlPanel(Protocol):
     def add(self) -> None: ...
 
 
+def _configure_slider_text(widget: object) -> None:
+    """Keep the numeric label inside the panel's declared footprint."""
+    representation = widget.GetRepresentation()
+    representation.SetLabelHeight(0.014)
+
+
 @dataclass
 class AnnotationControlPanel:
     """Managed visibility and text-size controls for annotation layers."""
@@ -36,8 +43,8 @@ class AnnotationControlPanel:
     origin_x: int = 20
     origin_y: int = 960
 
-    width: int = 270
-    height: int = 140
+    width: int = 300
+    height: int = 160
     checkbox_size: int = 22
     font_size: int = 11
     color: str = "#506070"
@@ -102,7 +109,7 @@ class AnnotationControlPanel:
             float(value)
             for value in self.plotter.window_size
         )
-        slider_y = self.origin_y - 100
+        slider_y = self.origin_y - 112
         slider = self.plotter.add_slider_widget(
             callback=self._set_font_size_scale,
             rng=(0.75, 2.50),
@@ -118,7 +125,11 @@ class AnnotationControlPanel:
             ),
             style="modern",
             fmt="%.2f x",
+            title_height=0.014,
+            slider_width=0.018,
+            tube_width=0.008,
         )
+        _configure_slider_text(slider)
         self.widgets.append(slider)
 
     def _set_visible(self, visible: bool) -> None:
@@ -130,6 +141,104 @@ class AnnotationControlPanel:
         for layer in self.layers:
             layer.set_font_size_scale(scale, render=False)
         self.plotter.render()
+
+
+@dataclass
+class GlobalControlPanel:
+    """Managed controls for the celestial shell and local illustration."""
+
+    plotter: pv.Plotter
+    set_sphere_presence: SliderCallback
+    set_local_scale: SliderCallback
+
+    origin_x: int = 20
+    origin_y: int = 960
+
+    width: int = 340
+    height: int = 230
+    font_size: int = 11
+    sphere_presence: float = 1.0
+    local_scale: float = 1.0
+
+    widgets: list[object] = field(
+        default_factory=list,
+        init=False,
+    )
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    def add(self) -> None:
+        title = self.plotter.add_text(
+            "Scene controls",
+            position=(self.origin_x, self.origin_y),
+            font_size=self.font_size + 2,
+            color="#202020",
+        )
+        self.widgets.append(title)
+
+        first_y = self.origin_y - 78
+        sphere_slider = self._add_slider(
+            callback=self.set_sphere_presence,
+            value=self.sphere_presence,
+            rng=(0.20, 3.00),
+            title="Celestial sphere",
+            y=first_y,
+        )
+        self.widgets.append(sphere_slider)
+
+        second_y = self.origin_y - 175
+        local_slider = self._add_slider(
+            callback=self.set_local_scale,
+            value=self.local_scale,
+            rng=(0.05, 2.00),
+            title="Earth / plane / observer",
+            y=second_y,
+        )
+        self.widgets.append(local_slider)
+
+    def _add_slider(
+        self,
+        *,
+        callback: SliderCallback,
+        value: float,
+        rng: tuple[float, float],
+        title: str,
+        y: int,
+    ) -> object:
+        slider = self.plotter.add_slider_widget(
+            callback=callback,
+            rng=rng,
+            value=value,
+            title=title,
+            pointa=self._normalized_point(
+                self.origin_x + 15,
+                y,
+            ),
+            pointb=self._normalized_point(
+                self.origin_x + self.width - 15,
+                y,
+            ),
+            style="modern",
+            fmt="%.2f x",
+            title_height=0.014,
+            slider_width=0.018,
+            tube_width=0.008,
+        )
+        _configure_slider_text(slider)
+        return slider
+
+    def _normalized_point(
+        self,
+        x: int,
+        y: int,
+    ) -> tuple[float, float]:
+        window_width, window_height = (
+            float(value)
+            for value in self.plotter.window_size
+        )
+        return x / window_width, y / window_height
 
 
 @dataclass
@@ -431,6 +540,15 @@ class PanelPlacement:
     width: int
     height: int
 
+    def overlaps(self, other: PanelPlacement) -> bool:
+        """Return whether two declared panel rectangles intersect."""
+        return not (
+            self.origin_x + self.width <= other.origin_x
+            or other.origin_x + other.width <= self.origin_x
+            or self.origin_y - self.height >= other.origin_y
+            or other.origin_y - other.height >= self.origin_y
+        )
+
 
 @dataclass
 class ControlManager:
@@ -444,6 +562,7 @@ class ControlManager:
     plotter: pv.Plotter
     window_size: tuple[int, int] | None = None
     margin: int = 20
+    top_margin: int = 80
     panel_gap: int = 12
 
     panels: list[ControlPanel] = field(
@@ -477,11 +596,13 @@ class ControlManager:
             )
         if self.margin < 0:
             raise ValueError("Control margin cannot be negative.")
+        if self.top_margin < 0:
+            raise ValueError("Control top_margin cannot be negative.")
         if self.panel_gap < 0:
             raise ValueError("Control panel_gap cannot be negative.")
 
         self._cursor_x = self.margin
-        self._cursor_y = self.window_size[1] - self.margin
+        self._cursor_y = self.window_size[1] - self.top_margin
 
     def register_panel(
         self,
@@ -498,7 +619,11 @@ class ControlManager:
 
         window_width, window_height = self.window_size
         available_width = window_width - 2 * self.margin
-        available_height = window_height - 2 * self.margin
+        available_height = (
+            window_height
+            - self.top_margin
+            - self.margin
+        )
         if width > available_width or height > available_height:
             raise ValueError(
                 "Control panel does not fit within the configured window."
@@ -513,7 +638,7 @@ class ControlManager:
             and origin_y - height < self.margin
         ):
             origin_x += column_width + self.panel_gap
-            origin_y = window_height - self.margin
+            origin_y = window_height - self.top_margin
             column_width = 0
 
         if origin_x + width > window_width - self.margin:
@@ -521,16 +646,24 @@ class ControlManager:
                 "No control-panel space remains in the configured window."
             )
 
-        panel.origin_x = origin_x
-        panel.origin_y = origin_y
-        panel.add()
-
         placement = PanelPlacement(
             origin_x=origin_x,
             origin_y=origin_y,
             width=width,
             height=height,
         )
+        if any(
+            placement.overlaps(existing)
+            for existing in self.placements
+        ):
+            raise RuntimeError(
+                "Calculated control-panel placement overlaps an existing panel."
+            )
+
+        panel.origin_x = origin_x
+        panel.origin_y = origin_y
+        panel.add()
+
         self.panels.append(panel)
         self.placements.append(placement)
 
