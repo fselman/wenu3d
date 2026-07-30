@@ -127,11 +127,15 @@ def test_scene_reset_camera_restores_canonical_view() -> None:
     scene.reset_camera()
 
     assert scene.plotter.camera_position == [
-        (2.35, -2.70, 1.55),
-        (0.0, 0.0, 0.02),
-        (0.0, 0.0, 1.0),
+        scene.canonical_camera.position,
+        scene.canonical_camera.focal_point,
+        scene.canonical_camera.view_up,
     ]
-    scene.plotter.camera.zoom.assert_called_once_with(1.12)
+    assert (
+        scene.plotter.camera.view_angle
+        == scene.canonical_camera.view_angle
+    )
+    scene.plotter.camera.zoom.assert_not_called()
     scene._refresh_celestial_sphere.assert_called_once_with()
     scene.plotter.render.assert_called_once_with()
 

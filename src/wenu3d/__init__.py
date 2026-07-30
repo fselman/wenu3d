@@ -4,6 +4,7 @@ from .annotations import (
     AnnotationObject,
     AnnotationStyle,
 )
+from .camera import CameraState
 from .controls import (
     AnnotationControlPanel,
     ControlManager,
@@ -24,6 +25,7 @@ __all__ = [
     "AnnotationObject",
     "AnnotationStyle",
     "AnnotationControlPanel",
+    "CameraState",
     "ControlManager",
     "GlobalControlPanel",
     "PanelPlacement",

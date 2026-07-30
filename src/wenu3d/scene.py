@@ -8,6 +8,7 @@ import pyvista as pv
 
 
 from .annotations import AnnotationLayer
+from .camera import CameraState
 from .controls import (
     AnnotationControlPanel,
     ControlManager,
@@ -73,6 +74,13 @@ class CelestialScene:
     and GridControlPanel, not in CelestialScene.
     """
 
+    canonical_camera = CameraState(
+        position=(2.35, -2.70, 1.55),
+        focal_point=(0.0, 0.0, 0.02),
+        view_up=(0.0, 0.0, 1.0),
+        view_angle=30.0 / 1.12,
+    )
+
     def __init__(
         self,
         *,
@@ -117,8 +125,7 @@ class CelestialScene:
         self._add_earth_and_observer()
         self._add_axis()
         self.plotter.enable_lightkit()
-        self._set_camera()
-        self._refresh_celestial_sphere()
+        self.set_camera(self.canonical_camera, render=False)
         self._install_sphere_camera_observer()
 
     def _add_celestial_shell(self) -> None:
@@ -538,19 +545,48 @@ class CelestialScene:
         self._refresh_celestial_sphere()
         self.plotter.render()
 
-    def _set_camera(self) -> None:
+    @property
+    def camera_state(self) -> CameraState:
+        """Return the complete current camera state."""
+        camera = self.plotter.camera
+        return CameraState(
+            position=camera.position,
+            focal_point=camera.focal_point,
+            view_up=camera.up,
+            view_angle=camera.view_angle,
+            parallel_projection=camera.parallel_projection,
+            parallel_scale=camera.parallel_scale,
+        )
+
+    def set_camera(
+        self,
+        state: CameraState,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Apply an explicit camera state to the current scene."""
+        if not isinstance(state, CameraState):
+            raise TypeError("state must be a CameraState.")
+
         self.plotter.camera_position = [
-            (2.35, -2.70, 1.55),
-            (0.0, 0.0, 0.02),
-            (0.0, 0.0, 1.0),
+            state.position,
+            state.focal_point,
+            state.view_up,
         ]
-        self.plotter.camera.zoom(1.12)
+        camera = self.plotter.camera
+        if state.parallel_projection:
+            camera.enable_parallel_projection()
+        else:
+            camera.disable_parallel_projection()
+        camera.view_angle = state.view_angle
+        camera.parallel_scale = state.parallel_scale
+        self._refresh_celestial_sphere()
+        if render:
+            self.plotter.render()
 
     def reset_camera(self) -> None:
         """Restore the canonical illustration camera and refresh the shell."""
-        self._set_camera()
-        self._refresh_celestial_sphere()
-        self.plotter.render()
+        self.set_camera(self.canonical_camera)
 
     def show(self, *, screenshot: str | None = None) -> None:
         self.plotter.add_text(
