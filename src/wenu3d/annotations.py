@@ -4,6 +4,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
+import pyvista as pv
+
+from .layer import Layer
+from .scene_object import SceneObject
 
 
 Vector3 = tuple[float, float, float]
@@ -93,3 +97,56 @@ class Annotation:
             anchor + offset
             for anchor, offset in zip(self.anchor, self.offset, strict=True)
         )
+
+
+@dataclass
+class AnnotationObject(SceneObject):
+    """Lifecycle-managed PyVista representation of one annotation."""
+
+    annotation: Annotation | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.annotation, Annotation):
+            raise TypeError(
+                "AnnotationObject annotation must be an Annotation."
+            )
+        self.visible = self.visible and self.annotation.visible
+
+    def build(self, plotter: pv.Plotter) -> None:
+        if self.annotation is None:
+            raise TypeError(
+                "AnnotationObject annotation must be an Annotation."
+            )
+
+        self._prepare_build(plotter)
+        actor = plotter.add_point_labels(
+            [self.annotation.position],
+            [self.annotation.text],
+            bold=self.annotation.style.bold,
+            font_size=self.annotation.style.font_size,
+            text_color=self.annotation.style.color,
+            show_points=False,
+            shape=None,
+            always_visible=True,
+            name=self.name,
+            reset_camera=False,
+            render=False,
+        )
+        self.add_actor(actor)
+
+
+@dataclass
+class AnnotationLayer(Layer):
+    """A layer of independently addressable annotation objects."""
+
+    def add_annotation(
+        self,
+        name: str,
+        annotation: Annotation,
+    ) -> AnnotationObject:
+        obj = AnnotationObject(
+            name=name,
+            annotation=annotation,
+        )
+        self.add(obj)
+        return obj
