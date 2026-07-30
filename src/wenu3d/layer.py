@@ -38,11 +38,15 @@ class Layer(SceneObject):
         if render and plotter is not None:
             plotter.render()
 
+    def _set_ancestor_visible(self, visible: bool) -> None:
+        self._ancestor_visible = bool(visible)
+        for obj in self.objects:
+            obj._set_ancestor_visible(self.effective_visible)
+
     def set_visible(self, visible: bool, *, render: bool = True) -> None:
         self.visible = bool(visible)
         for obj in self.objects:
-            for actor in obj.actors:
-                actor.SetVisibility(self.visible and obj.visible)
+            obj._set_ancestor_visible(self.effective_visible)
         self._request_render(render)
 
     def get(self, name: str) -> SceneObject:

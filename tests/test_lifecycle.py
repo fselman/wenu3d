@@ -87,6 +87,29 @@ def test_layer_visibility_preserves_child_selection() -> None:
         plotter.close()
 
 
+def test_child_change_cannot_override_hidden_layer() -> None:
+    plotter = pv.Plotter(off_screen=True)
+    grid = make_grid()
+    child = grid.meridians[0.0]
+
+    try:
+        grid.build(plotter)
+        grid.set_visible(False, render=False)
+
+        child.set_visible(False, render=False)
+        child.set_visible(True, render=False)
+
+        assert child.visible is True
+        assert child.effective_visible is False
+        assert not child.actors[0].GetVisibility()
+
+        grid.set_visible(True, render=False)
+        assert child.effective_visible is True
+        assert child.actors[0].GetVisibility()
+    finally:
+        plotter.close()
+
+
 def test_scene_graph_iterates_in_insertion_order() -> None:
     graph = SceneGraph()
     first = make_grid("first")

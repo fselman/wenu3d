@@ -23,6 +23,11 @@ class SceneObject:
         init=False,
         repr=False,
     )
+    _ancestor_visible: bool = field(
+        default=True,
+        init=False,
+        repr=False,
+    )
 
     def build(self, plotter: pv.Plotter) -> None:
         raise NotImplementedError
@@ -30,6 +35,10 @@ class SceneObject:
     @property
     def attached_plotter(self) -> pv.Plotter | None:
         return self._plotter
+
+    @property
+    def effective_visible(self) -> bool:
+        return self.visible and self._ancestor_visible
 
     def _prepare_build(self, plotter: pv.Plotter) -> None:
         """Remove an earlier build and attach this object to ``plotter``."""
@@ -56,8 +65,13 @@ class SceneObject:
         if render and self._plotter is not None:
             self._plotter.render()
 
+    def _set_ancestor_visible(self, visible: bool) -> None:
+        self._ancestor_visible = bool(visible)
+        for actor in self.actors:
+            actor.SetVisibility(self.effective_visible)
+
     def _apply_actor_state(self, actor: pv.Actor) -> None:
-        actor.SetVisibility(bool(self.visible))
+        actor.SetVisibility(self.effective_visible)
         prop = actor.GetProperty()
         if prop is not None:
             prop.SetOpacity(float(self.opacity))
@@ -65,7 +79,7 @@ class SceneObject:
     def set_visible(self, visible: bool, *, render: bool = True) -> None:
         self.visible = bool(visible)
         for actor in self.actors:
-            actor.SetVisibility(self.visible)
+            actor.SetVisibility(self.effective_visible)
         self._request_render(render)
 
     def set_opacity(
