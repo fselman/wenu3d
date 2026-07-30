@@ -116,6 +116,7 @@ class CelestialScene:
         self._add_celestial_shell()
         self._add_earth_and_observer()
         self._add_axis()
+        self.plotter.enable_lightkit()
         self._set_camera()
         self._refresh_celestial_sphere()
         self._install_sphere_camera_observer()
@@ -523,6 +524,7 @@ class CelestialScene:
             set_local_scale=self._set_local_scale,
             get_sphere_presence=lambda: self._sphere_presence,
             get_local_scale=lambda: self._local_scale,
+            reset_camera=self.reset_camera,
         )
         return self.controls.register_panel(panel)
 
@@ -537,13 +539,18 @@ class CelestialScene:
         self.plotter.render()
 
     def _set_camera(self) -> None:
-        self.plotter.enable_lightkit()
         self.plotter.camera_position = [
             (2.35, -2.70, 1.55),
             (0.0, 0.0, 0.02),
             (0.0, 0.0, 1.0),
         ]
         self.plotter.camera.zoom(1.12)
+
+    def reset_camera(self) -> None:
+        """Restore the canonical illustration camera and refresh the shell."""
+        self._set_camera()
+        self._refresh_celestial_sphere()
+        self.plotter.render()
 
     def show(self, *, screenshot: str | None = None) -> None:
         self.plotter.add_text(

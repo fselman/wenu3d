@@ -14,6 +14,7 @@ from .grid import GridLayer
 CheckboxCallback = Callable[[bool], None]
 SliderCallback = Callable[[float], None]
 ValueGetter = Callable[[], float]
+ActionCallback = Callable[[], None]
 
 PanelT = TypeVar("PanelT", bound="ControlPanel")
 
@@ -181,12 +182,14 @@ class GlobalControlPanel:
     set_local_scale: SliderCallback
     get_sphere_presence: ValueGetter | None = None
     get_local_scale: ValueGetter | None = None
+    reset_camera: ActionCallback | None = None
 
     origin_x: int = 20
     origin_y: int = 960
 
     width: int = 340
-    height: int = 230
+    height: int = 260
+    checkbox_size: int = 22
     font_size: int = 11
     sphere_presence: float = 1.0
     local_scale: float = 1.0
@@ -201,6 +204,11 @@ class GlobalControlPanel:
         repr=False,
     )
     _local_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _reset_camera_widget: object | None = field(
         default=None,
         init=False,
         repr=False,
@@ -241,6 +249,32 @@ class GlobalControlPanel:
         self._local_widget = local_slider
         self.widgets.append(local_slider)
 
+        if self.reset_camera is not None:
+            button_y = self.origin_y - 225
+            button = self.plotter.add_checkbox_button_widget(
+                callback=self._reset_camera,
+                value=False,
+                position=(self.origin_x, button_y),
+                size=self.checkbox_size,
+                border_size=2,
+                color_on="#506070",
+                color_off="#d4d4d4",
+                background_color="#f7f6f2",
+            )
+            self._reset_camera_widget = button
+            self.widgets.append(button)
+
+            label = self.plotter.add_text(
+                "Reset camera",
+                position=(
+                    self.origin_x + self.checkbox_size + 7,
+                    button_y,
+                ),
+                font_size=self.font_size,
+                color="#202020",
+            )
+            self.widgets.append(label)
+
     def _sphere_value(self) -> float:
         if self.get_sphere_presence is not None:
             return float(self.get_sphere_presence())
@@ -258,6 +292,13 @@ class GlobalControlPanel:
     def _set_local_scale(self, value: float) -> None:
         self.local_scale = float(value)
         self.set_local_scale(self.local_scale)
+
+    def _reset_camera(self, activated: bool) -> None:
+        if not activated or self.reset_camera is None:
+            return
+        self.reset_camera()
+        if self._reset_camera_widget is not None:
+            self._reset_camera_widget.GetRepresentation().SetState(0)
 
     def sync_from_model(self) -> None:
         """Update slider representations from current scene state."""

@@ -25,13 +25,14 @@ def make_panel(
         plotter=make_plotter(),
         set_sphere_presence=Mock(),
         set_local_scale=Mock(),
+        reset_camera=Mock(),
         origin_x=origin_x,
         origin_y=origin_y,
     )
 
 
 def test_global_panel_declares_full_slider_footprint() -> None:
-    assert make_panel().control_size == (340, 230)
+    assert make_panel().control_size == (340, 260)
 
 
 def test_global_panel_uses_compact_nonoverlapping_sliders() -> None:
@@ -57,13 +58,29 @@ def test_global_panel_uses_compact_nonoverlapping_sliders() -> None:
     )
     assert sphere["title_height"] == 0.014
     assert local["title_height"] == 0.014
-    assert len(panel.widgets) == 3
+    assert len(panel.widgets) == 5
 
     representation = (
         panel.plotter.add_slider_widget.return_value
         .GetRepresentation.return_value
     )
     assert representation.SetLabelHeight.call_count == 2
+
+
+def test_global_panel_reset_camera_action_is_momentary() -> None:
+    panel = make_panel()
+    panel.add()
+
+    callback = (
+        panel.plotter.add_checkbox_button_widget
+        .call_args.kwargs["callback"]
+    )
+    callback(True)
+
+    panel.reset_camera.assert_called_once_with()
+    panel._reset_camera_widget.GetRepresentation().SetState.assert_called_with(
+        0
+    )
 
 
 def test_scene_registers_global_panel_without_coordinates() -> None:
@@ -99,6 +116,23 @@ def test_global_panel_callbacks_update_scene() -> None:
     panel.set_local_scale(0.5)
 
     scene.local_group.set_scale.assert_called_once_with(0.5)
+    scene.plotter.render.assert_called_once_with()
+
+
+def test_scene_reset_camera_restores_canonical_view() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.plotter = make_plotter()
+    scene._refresh_celestial_sphere = Mock()
+
+    scene.reset_camera()
+
+    assert scene.plotter.camera_position == [
+        (2.35, -2.70, 1.55),
+        (0.0, 0.0, 0.02),
+        (0.0, 0.0, 1.0),
+    ]
+    scene.plotter.camera.zoom.assert_called_once_with(1.12)
+    scene._refresh_celestial_sphere.assert_called_once_with()
     scene.plotter.render.assert_called_once_with()
 
 
