@@ -618,17 +618,23 @@ class CelestialScene:
         path: str | Path,
         *,
         camera_state: CameraState | None = None,
+        window_size: tuple[int, int] | None = None,
+        transparent_background: bool = False,
     ) -> np.ndarray:
-        """Render and save an opaque image without closing the scene."""
+        """Render and save an image without closing the scene."""
         if camera_state is not None:
             self.set_camera(camera_state, render=False)
 
         self.render()
-        image = self.plotter.screenshot(
-            filename=Path(path),
-            transparent_background=False,
-            return_img=True,
-        )
+        screenshot_options = {
+            "filename": Path(path),
+            "transparent_background": transparent_background,
+            "return_img": True,
+        }
+        if window_size is not None:
+            screenshot_options["window_size"] = window_size
+
+        image = self.plotter.screenshot(**screenshot_options)
         if image is None:
             raise RuntimeError("PyVista did not return the saved image.")
         return image

@@ -131,6 +131,29 @@ def test_save_applies_explicit_camera_before_rendering() -> None:
     scene.render.assert_called_once_with()
 
 
+def test_save_supports_export_dimensions_and_transparency() -> None:
+    scene = make_scene()
+    scene.render = Mock()
+    image = np.zeros((800, 1200, 4), dtype=np.uint8)
+    scene.plotter.screenshot.return_value = image
+    output = Path("transparent.png")
+
+    result = scene.save(
+        output,
+        window_size=(1200, 800),
+        transparent_background=True,
+    )
+
+    scene.render.assert_called_once_with()
+    scene.plotter.screenshot.assert_called_once_with(
+        filename=output,
+        transparent_background=True,
+        return_img=True,
+        window_size=(1200, 800),
+    )
+    assert result is image
+
+
 def test_repeated_save_reuses_scene_content() -> None:
     scene = make_scene()
     scene.plotter.screenshot.return_value = np.zeros(
