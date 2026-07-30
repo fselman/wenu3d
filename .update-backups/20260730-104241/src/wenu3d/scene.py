@@ -91,83 +91,44 @@ class CelestialScene:
             phi_resolution=180,
         )
 
-        rim_shell = pv.Sphere(
-            radius=1.012 * self.sphere_radius,
-            theta_resolution=360,
-            phi_resolution=180,
-        )
-
-        # Rear-facing surface: translucent blue volume.
+        # Back-facing shell gives the sphere its pale blue body.
         self.sphere_back_actor = self.plotter.add_mesh(
             shell,
             color=self.style.sphere_back_color,
             opacity=self.style.sphere_back_opacity,
             smooth_shading=True,
-            ambient=0.58,
-            diffuse=0.30,
-            specular=0.20,
-            specular_power=35,
+            ambient=0.72,
+            diffuse=0.22,
+            specular=0.10,
+            specular_power=24,
             culling="front",
         )
 
-        # Front-facing surface: reflective glass layer.
+        # Front-facing shell behaves like faint glass over interior objects.
         self.sphere_front_actor = self.plotter.add_mesh(
             shell,
             color=self.style.sphere_front_color,
             opacity=self.style.sphere_front_opacity,
             smooth_shading=True,
-            ambient=0.28,
-            diffuse=0.22,
+            ambient=0.45,
+            diffuse=0.18,
             specular=self.style.sphere_specular,
             specular_power=self.style.sphere_specular_power,
             culling="back",
         )
 
-        # Outer glass layer: increases limb darkening.
+        # A slightly larger shell strengthens the blue outer rim.
         self.sphere_outer_actor = self.plotter.add_mesh(
             outer_shell,
             color=self.style.sphere_outer_color,
             opacity=self.style.sphere_outer_opacity,
             smooth_shading=True,
-            ambient=0.24,
-            diffuse=0.18,
-            specular=0.72,
-            specular_power=120,
-            culling="front",
-        )
-
-        # Very faint, darker outer rim.
-        self.sphere_rim_actor = self.plotter.add_mesh(
-            rim_shell,
-            color=self.style.sphere_rim_color,
-            opacity=self.style.sphere_rim_opacity,
-            smooth_shading=True,
-            ambient=0.20,
+            ambient=0.30,
             diffuse=0.12,
-            specular=0.78,
-            specular_power=128,
+            specular=0.55,
+            specular_power=100,
             culling="front",
         )
-
-        # Additional lights create more distinctly spherical reflections.
-        key_light = pv.Light(
-            position=(2.8, -2.2, 3.0),
-            focal_point=(0.0, 0.0, 0.0),
-            color="#ffffff",
-            intensity=0.55,
-            positional=True,
-        )
-
-        fill_light = pv.Light(
-            position=(-2.5, -1.0, 1.7),
-            focal_point=(0.0, 0.0, 0.0),
-            color="#dbe9ff",
-            intensity=0.26,
-            positional=True,
-        )
-
-        self.plotter.add_light(key_light)
-        self.plotter.add_light(fill_light)
 
     def _add_earth_and_observer(self) -> None:
         zenith = self.horizontal.pole
@@ -311,10 +272,7 @@ class CelestialScene:
                 min(0.30, self.style.sphere_front_opacity * factor)
             )
             self.sphere_outer_actor.GetProperty().SetOpacity(
-                min(0.24, self.style.sphere_outer_opacity * factor)
-            )
-            self.sphere_rim_actor.GetProperty().SetOpacity(
-                min(0.18, self.style.sphere_rim_opacity * factor)
+                min(0.22, self.style.sphere_outer_opacity * factor)
             )
             self.plotter.render()
 
@@ -323,8 +281,8 @@ class CelestialScene:
             rng=(0.20, 3.00),
             value=1.0,
             title="Celestial sphere",
-            pointa=(0.08, 0.115),
-            pointb=(0.42, 0.115),
+            pointa=(0.05, 0.05),
+            pointb=(0.43, 0.05),
             style="modern",
             fmt="%.2f x",
         )
@@ -333,8 +291,8 @@ class CelestialScene:
             rng=(0.05, 2.00),
             value=1.0,
             title="Earth / plane / observer",
-            pointa=(0.58, 0.115),
-            pointb=(0.92, 0.115),
+            pointa=(0.57, 0.05),
+            pointb=(0.95, 0.05),
             style="modern",
             fmt="%.2f x",
         )
