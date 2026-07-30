@@ -27,9 +27,6 @@ class SphericalFrame:
                 - np.dot(east, zero) * zero
             )
 
-        if np.dot(np.cross(zero, east), pole) < 0:
-            east = -east
-
         object.__setattr__(self, "pole", pole)
         object.__setattr__(self, "zero", zero)
         object.__setattr__(self, "east", east)

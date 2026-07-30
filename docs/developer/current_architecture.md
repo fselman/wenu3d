@@ -45,6 +45,11 @@ that integration does not yet exist.
 - `zero`: zero-longitude direction;
 - `east`: increasing-longitude direction.
 
+Construction normalizes the vectors and removes non-orthogonal components.
+When `east` is omitted, it is inferred to complete a right-handed basis. An
+explicitly supplied increasing-longitude direction is preserved, allowing the
+horizontal convention in which azimuth increases from North toward East.
+
 `point()` converts longitude and latitude to Cartesian coordinates. The local
 convention is +x East, +y North, and +z Zenith.
 
