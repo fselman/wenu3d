@@ -170,9 +170,12 @@ The M2 scientific test suite verifies:
 - meridian and parallel sampling;
 - invalid curve definitions.
 
+An off-screen rendering smoke test also verifies that a small `GridLayer`
+builds three PyVista actors and produces a nonempty PNG with the requested
+dimensions.
+
 The repository does not yet automatically verify Earth orientation, scene
-lifecycle, repeated builds, off-screen rendering, or canonical example
-execution.
+lifecycle, repeated builds, or canonical example execution.
 
 ## 12. Strengths
 
@@ -191,7 +194,7 @@ execution.
 4. Actor lifecycle is undefined.
 5. Rendering semantics are inconsistent.
 6. Controls do not scale automatically.
-7. Rendering and lifecycle tests do not yet exist.
+7. Full-scene rendering and lifecycle tests do not yet exist.
 8. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
