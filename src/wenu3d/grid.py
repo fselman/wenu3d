@@ -44,6 +44,7 @@ class GridCurveObject(SceneObject):
         else:
             raise ValueError(f"Unsupported grid curve kind: {self.kind}")
 
+        self._prepare_build(plotter)
         actor = add_tube(
             plotter,
             points,
