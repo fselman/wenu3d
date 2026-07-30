@@ -99,6 +99,7 @@ class CelestialScene:
 
         self.graph = SceneGraph()
         self.local_group = ActorScaleGroup()
+        self._local_scale = 1.0
         self.controls = ControlManager(
             plotter=self.plotter,
             window_size=window_size,
@@ -520,11 +521,14 @@ class CelestialScene:
             plotter=self.plotter,
             set_sphere_presence=self._set_sphere_presence,
             set_local_scale=self._set_local_scale,
+            get_sphere_presence=lambda: self._sphere_presence,
+            get_local_scale=lambda: self._local_scale,
         )
         return self.controls.register_panel(panel)
 
     def _set_local_scale(self, value: float) -> None:
-        self.local_group.set_scale(value)
+        self._local_scale = float(value)
+        self.local_group.set_scale(self._local_scale)
         self.plotter.render()
 
     def _set_sphere_presence(self, value: float) -> None:

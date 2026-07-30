@@ -19,9 +19,13 @@ class FakePanel:
     origin_y: int = -1
     control_size: tuple[int, int] = (100, 150)
     add_count: int = 0
+    sync_count: int = 0
 
     def add(self) -> None:
         self.add_count += 1
+
+    def sync_from_model(self) -> None:
+        self.sync_count += 1
 
 
 def make_manager(
@@ -161,4 +165,17 @@ def test_control_manager_renders_immediately_outside_batch() -> None:
 
     manager.request_render()
 
+    plotter.render.assert_called_once_with()
+
+
+def test_control_manager_syncs_panels_with_one_render() -> None:
+    manager, plotter = make_manager()
+    first = manager.register_panel(FakePanel())
+    second = manager.register_panel(FakePanel())
+    plotter.reset_mock()
+
+    manager.sync()
+
+    assert first.sync_count == 1
+    assert second.sync_count == 1
     plotter.render.assert_called_once_with()

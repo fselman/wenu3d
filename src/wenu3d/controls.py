@@ -13,6 +13,7 @@ from .grid import GridLayer
 
 CheckboxCallback = Callable[[bool], None]
 SliderCallback = Callable[[float], None]
+ValueGetter = Callable[[], float]
 
 PanelT = TypeVar("PanelT", bound="ControlPanel")
 
@@ -53,6 +54,16 @@ class AnnotationControlPanel:
         default_factory=list,
         init=False,
     )
+    _visibility_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _size_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         self.layers = tuple(self.layers)
@@ -92,6 +103,7 @@ class AnnotationControlPanel:
             color_off="#d4d4d4",
             background_color="#f7f6f2",
         )
+        self._visibility_widget = checkbox
         self.widgets.append(checkbox)
 
         label = self.plotter.add_text(
@@ -130,6 +142,7 @@ class AnnotationControlPanel:
             tube_width=0.008,
         )
         _configure_slider_text(slider)
+        self._size_widget = slider
         self.widgets.append(slider)
 
     def _set_visible(self, visible: bool) -> None:
@@ -142,6 +155,22 @@ class AnnotationControlPanel:
             layer.set_font_size_scale(scale, render=False)
         self.plotter.render()
 
+    def sync_from_model(self) -> None:
+        """Update widget representations from the annotation layers."""
+        if self._visibility_widget is not None:
+            representation = (
+                self._visibility_widget.GetRepresentation()
+            )
+            representation.SetState(
+                int(all(layer.visible for layer in self.layers))
+            )
+
+        if self._size_widget is not None:
+            representation = self._size_widget.GetRepresentation()
+            representation.SetValue(
+                self.layers[0].font_size_scale
+            )
+
 
 @dataclass
 class GlobalControlPanel:
@@ -150,6 +179,8 @@ class GlobalControlPanel:
     plotter: pv.Plotter
     set_sphere_presence: SliderCallback
     set_local_scale: SliderCallback
+    get_sphere_presence: ValueGetter | None = None
+    get_local_scale: ValueGetter | None = None
 
     origin_x: int = 20
     origin_y: int = 960
@@ -163,6 +194,16 @@ class GlobalControlPanel:
     widgets: list[object] = field(
         default_factory=list,
         init=False,
+    )
+    _sphere_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _local_widget: object | None = field(
+        default=None,
+        init=False,
+        repr=False,
     )
 
     @property
@@ -180,23 +221,57 @@ class GlobalControlPanel:
 
         first_y = self.origin_y - 78
         sphere_slider = self._add_slider(
-            callback=self.set_sphere_presence,
-            value=self.sphere_presence,
+            callback=self._set_sphere_presence,
+            value=self._sphere_value(),
             rng=(0.20, 3.00),
             title="Celestial sphere",
             y=first_y,
         )
+        self._sphere_widget = sphere_slider
         self.widgets.append(sphere_slider)
 
         second_y = self.origin_y - 175
         local_slider = self._add_slider(
-            callback=self.set_local_scale,
-            value=self.local_scale,
+            callback=self._set_local_scale,
+            value=self._local_value(),
             rng=(0.05, 2.00),
             title="Earth / plane / observer",
             y=second_y,
         )
+        self._local_widget = local_slider
         self.widgets.append(local_slider)
+
+    def _sphere_value(self) -> float:
+        if self.get_sphere_presence is not None:
+            return float(self.get_sphere_presence())
+        return self.sphere_presence
+
+    def _local_value(self) -> float:
+        if self.get_local_scale is not None:
+            return float(self.get_local_scale())
+        return self.local_scale
+
+    def _set_sphere_presence(self, value: float) -> None:
+        self.sphere_presence = float(value)
+        self.set_sphere_presence(self.sphere_presence)
+
+    def _set_local_scale(self, value: float) -> None:
+        self.local_scale = float(value)
+        self.set_local_scale(self.local_scale)
+
+    def sync_from_model(self) -> None:
+        """Update slider representations from current scene state."""
+        self.sphere_presence = self._sphere_value()
+        self.local_scale = self._local_value()
+
+        if self._sphere_widget is not None:
+            self._sphere_widget.GetRepresentation().SetValue(
+                self.sphere_presence
+            )
+        if self._local_widget is not None:
+            self._local_widget.GetRepresentation().SetValue(
+                self.local_scale
+            )
 
     def _add_slider(
         self,
@@ -678,6 +753,15 @@ class ControlManager:
             self._render_pending = True
             return
         self.plotter.render()
+
+    def sync(self, *, render: bool = True) -> None:
+        """Synchronize registered widgets from their current model state."""
+        for panel in self.panels:
+            sync = getattr(panel, "sync_from_model", None)
+            if callable(sync):
+                sync()
+        if render:
+            self.request_render()
 
     @contextmanager
     def batch_render(self) -> Iterator[None]:

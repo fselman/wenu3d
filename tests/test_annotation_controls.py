@@ -17,7 +17,9 @@ def make_plotter() -> Mock:
     plotter = Mock()
     plotter.window_size = (1800, 1200)
     plotter.add_text.return_value = object()
-    plotter.add_checkbox_button_widget.return_value = object()
+    checkbox = Mock()
+    checkbox.GetRepresentation.return_value = Mock()
+    plotter.add_checkbox_button_widget.return_value = checkbox
     slider = Mock()
     slider.GetRepresentation.return_value = Mock()
     plotter.add_slider_widget.return_value = slider
@@ -90,6 +92,27 @@ def test_annotation_panel_updates_all_layers_with_one_render() -> None:
 
     assert all(layer.font_size_scale == 1.75 for layer in layers)
     plotter.render.assert_called_once_with()
+
+
+def test_annotation_panel_syncs_external_model_changes() -> None:
+    plotter = make_plotter()
+    layers = make_layers()
+    panel = AnnotationControlPanel(
+        plotter=plotter,
+        layers=layers,
+    )
+    panel.add()
+
+    layers[0].set_visible(False, render=False)
+    layers[0].set_font_size_scale(1.5, render=False)
+    panel.sync_from_model()
+
+    visibility_representation = (
+        panel._visibility_widget.GetRepresentation()
+    )
+    size_representation = panel._size_widget.GetRepresentation()
+    visibility_representation.SetState.assert_called_with(0)
+    size_representation.SetValue.assert_called_with(1.5)
 
 
 def test_scene_registers_annotation_panel_without_coordinates() -> None:

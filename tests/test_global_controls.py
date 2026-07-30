@@ -84,6 +84,7 @@ def test_global_panel_callbacks_update_scene() -> None:
     scene.controls = Mock()
     scene.controls.register_panel.side_effect = lambda panel: panel
     scene.local_group = Mock()
+    scene._local_scale = 1.0
     scene._sphere_presence = 1.0
     scene._refresh_celestial_sphere = Mock()
     panel = scene.add_global_controls()
@@ -99,3 +100,29 @@ def test_global_panel_callbacks_update_scene() -> None:
 
     scene.local_group.set_scale.assert_called_once_with(0.5)
     scene.plotter.render.assert_called_once_with()
+
+
+def test_global_panel_syncs_external_scene_changes() -> None:
+    state = {
+        "sphere": 1.0,
+        "local": 1.0,
+    }
+    panel = GlobalControlPanel(
+        plotter=make_plotter(),
+        set_sphere_presence=Mock(),
+        set_local_scale=Mock(),
+        get_sphere_presence=lambda: state["sphere"],
+        get_local_scale=lambda: state["local"],
+    )
+    panel.add()
+
+    state["sphere"] = 2.25
+    state["local"] = 0.4
+    panel.sync_from_model()
+
+    sphere_representation = (
+        panel._sphere_widget.GetRepresentation()
+    )
+    local_representation = panel._local_widget.GetRepresentation()
+    sphere_representation.SetValue.assert_any_call(2.25)
+    local_representation.SetValue.assert_any_call(0.4)
