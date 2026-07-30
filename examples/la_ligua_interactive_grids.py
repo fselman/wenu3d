@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from wenu3d import CelestialScene, SceneStyle
+from wenu3d import (
+    Annotation,
+    AnnotationLayer,
+    AnnotationStyle,
+    CelestialScene,
+    SceneStyle,
+)
 
 
 scene = CelestialScene(
@@ -46,6 +52,38 @@ equatorial = scene.make_equatorial_grid(
     parallels_deg=parallels,
 )
 scene.add(equatorial)
+
+horizontal_labels = horizontal.make_label_layer(
+    meridian_anchors={
+        0: 8,
+        90: 8,
+        180: 8,
+        270: 8,
+    },
+    annotation_style=AnnotationStyle(
+        color=scene.style.horizontal_grid_color,
+        font_size=13,
+        bold=True,
+    ),
+)
+scene.add(horizontal_labels)
+
+scientific_callouts = AnnotationLayer(name="scientific_callouts")
+south_celestial_pole = -scene.equatorial.pole
+scientific_callouts.add_annotation(
+    "scientific_callouts.south_celestial_pole",
+    Annotation(
+        text="South celestial pole",
+        anchor=scene.sphere_radius * south_celestial_pole,
+        offset=0.055 * south_celestial_pole,
+        style=AnnotationStyle(
+            color=scene.style.text_color,
+            font_size=16,
+            bold=True,
+        ),
+    ),
+)
+scene.add(scientific_callouts)
 
 # Both panels are on the left and remain visually separate.
 scene.add_grid_controls(
