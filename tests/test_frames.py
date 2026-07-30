@@ -86,6 +86,24 @@ def test_point_broadcasts_longitude_and_latitude() -> None:
     )
 
 
+@pytest.mark.parametrize("radius", [0.0, -1.0, np.inf, np.nan])
+def test_point_rejects_invalid_radius(radius: float) -> None:
+    with pytest.raises(ValueError, match="Radius"):
+        horizontal_frame().point(0.0, 0.0, radius=radius)
+
+
+@pytest.mark.parametrize("latitude_deg", [-90.1, 90.1, np.inf, np.nan])
+def test_point_rejects_invalid_latitude(latitude_deg: float) -> None:
+    with pytest.raises(ValueError, match="Latitude"):
+        horizontal_frame().point(0.0, latitude_deg)
+
+
+@pytest.mark.parametrize("longitude_deg", [np.inf, -np.inf, np.nan])
+def test_point_rejects_nonfinite_longitude(longitude_deg: float) -> None:
+    with pytest.raises(ValueError, match="Longitude"):
+        horizontal_frame().point(longitude_deg, 0.0)
+
+
 @pytest.mark.parametrize("latitude_deg", [-60.0, 0.0, 45.0])
 def test_equatorial_frame_has_expected_pole(
     latitude_deg: float,
@@ -99,3 +117,14 @@ def test_equatorial_frame_has_expected_pole(
         atol=1e-12,
     )
     assert_orthonormal(frame)
+
+
+@pytest.mark.parametrize(
+    "latitude_deg",
+    [-90.0, 90.0, -91.0, 91.0, np.inf, np.nan],
+)
+def test_equatorial_frame_rejects_undefined_or_invalid_latitude(
+    latitude_deg: float,
+) -> None:
+    with pytest.raises(ValueError, match="latitude"):
+        equatorial_frame(latitude_deg)

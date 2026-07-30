@@ -34,6 +34,17 @@ class SphericalFrame:
     def point(self, longitude_deg, latitude_deg, radius: float = 1.0) -> np.ndarray:
         lon = np.deg2rad(np.asarray(longitude_deg, dtype=float))
         lat = np.deg2rad(np.asarray(latitude_deg, dtype=float))
+        radius = float(radius)
+
+        if not np.all(np.isfinite(lon)):
+            raise ValueError("Longitude values must be finite.")
+        if not np.all(np.isfinite(lat)):
+            raise ValueError("Latitude values must be finite.")
+        if np.any((lat < -0.5 * np.pi) | (lat > 0.5 * np.pi)):
+            raise ValueError("Latitude values must be between -90 and 90 degrees.")
+        if not np.isfinite(radius) or radius <= 0.0:
+            raise ValueError("Radius must be finite and greater than zero.")
+
         lon, lat = np.broadcast_arrays(lon, lat)
 
         c = np.cos(lat)
@@ -56,6 +67,13 @@ def horizontal_frame() -> SphericalFrame:
 
 
 def equatorial_frame(latitude_deg: float) -> SphericalFrame:
+    if not np.isfinite(latitude_deg):
+        raise ValueError("Observer latitude must be finite.")
+    if not -90.0 < latitude_deg < 90.0:
+        raise ValueError(
+            "Observer latitude must be strictly between -90 and 90 degrees."
+        )
+
     lat = np.deg2rad(latitude_deg)
 
     ncp = unit(np.array([0.0, np.cos(lat), np.sin(lat)]))

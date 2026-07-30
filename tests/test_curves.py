@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from wenu3d.curves import Meridian, Parallel
 from wenu3d.frames import horizontal_frame
@@ -76,3 +77,51 @@ def test_parallel_is_closed_by_repeated_endpoint() -> None:
     ).points()
 
     np.testing.assert_allclose(points[0], points[-1], atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"longitude_deg": np.nan},
+        {"latitude_min_deg": -91.0},
+        {"latitude_max_deg": 91.0},
+        {"latitude_min_deg": 20.0, "latitude_max_deg": 20.0},
+        {"latitude_min_deg": 30.0, "latitude_max_deg": 20.0},
+        {"samples": 1},
+        {"samples": 2.5},
+        {"samples": True},
+    ],
+)
+def test_meridian_rejects_invalid_definition(
+    kwargs: dict[str, float],
+) -> None:
+    arguments = {"longitude_deg": 0.0}
+    arguments.update(kwargs)
+
+    with pytest.raises(ValueError):
+        Meridian(horizontal_frame(), **arguments)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"latitude_deg": -91.0},
+        {"latitude_deg": 91.0},
+        {"latitude_deg": np.nan},
+        {"longitude_min_deg": np.nan},
+        {"longitude_max_deg": np.inf},
+        {"longitude_min_deg": 20.0, "longitude_max_deg": 20.0},
+        {"longitude_min_deg": 30.0, "longitude_max_deg": 20.0},
+        {"samples": 1},
+        {"samples": 2.5},
+        {"samples": True},
+    ],
+)
+def test_parallel_rejects_invalid_definition(
+    kwargs: dict[str, float],
+) -> None:
+    arguments = {"latitude_deg": 0.0}
+    arguments.update(kwargs)
+
+    with pytest.raises(ValueError):
+        Parallel(horizontal_frame(), **arguments)

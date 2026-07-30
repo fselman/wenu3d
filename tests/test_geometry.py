@@ -20,3 +20,18 @@ def test_unit_returns_float_array() -> None:
 def test_unit_rejects_zero_vector() -> None:
     with pytest.raises(ValueError, match="zero vector"):
         unit([0.0, 0.0, 0.0])
+
+
+@pytest.mark.parametrize(
+    "vector",
+    [
+        [],
+        [np.nan, 0.0, 1.0],
+        [np.inf, 0.0, 1.0],
+    ],
+)
+def test_unit_rejects_empty_or_nonfinite_vector(
+    vector: list[float],
+) -> None:
+    with pytest.raises(ValueError, match="finite"):
+        unit(vector)

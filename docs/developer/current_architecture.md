@@ -30,12 +30,11 @@ that integration does not yet exist.
 | `earth.py` | Earth mesh loading and orientation |
 | `observer.py` | Tangent plane and observer figure |
 | `local_group.py` | Scaling a raw group of actors |
-| `labels.py` | Legacy labels; currently inconsistent with `grid.py` |
 | `style.py` | Flat scene styling |
 | `scene.py` | Composition, shell, camera, rendering, grids, and controls |
 
-`examples/la_ligua_interactive_grids.py` uses the current API.
-`examples/la_ligua_grids.py` and parts of the README use an earlier API.
+`examples/la_ligua_interactive_grids.py` is the canonical example and uses the
+current API.
 
 ## 3. Scientific geometry
 
@@ -156,23 +155,24 @@ from the plotter.
 
 ## 10. Annotation state
 
-`labels.py` imports `GridLabel`, but current `grid.py` no longer defines it.
-Annotations are therefore stale, not part of the scene graph, and absent from
-the active example.
+The obsolete label implementation was removed in M1. Annotations are not yet
+part of the scene graph and are absent from the active example. First-class
+annotations are planned for M4.
 
 ## 11. Verification state
 
-There is no committed automated test suite. The repository does not
-automatically verify:
+The M2 scientific test suite verifies:
 
-- frame geometry and handedness;
-- coordinate conversion;
-- curve sampling;
-- Earth orientation;
-- lifecycle and state propagation;
-- repeated builds;
-- off-screen rendering;
-- canonical example execution.
+- vector normalization and invalid vector components;
+- frame orthogonality and orientation;
+- coordinate conversion and broadcasting;
+- coordinate, radius, and observer-latitude validation;
+- meridian and parallel sampling;
+- invalid curve definitions.
+
+The repository does not yet automatically verify Earth orientation, scene
+lifecycle, repeated builds, off-screen rendering, or canonical example
+execution.
 
 ## 12. Strengths
 
@@ -185,15 +185,14 @@ automatically verify:
 
 ## 13. Liabilities
 
-1. Documentation and examples describe conflicting APIs.
-2. Annotation code is broken and disconnected.
-3. Most scene elements bypass the graph.
-4. `CelestialScene` has too many responsibilities.
-5. Actor lifecycle is undefined.
-6. Rendering semantics are inconsistent.
-7. Controls do not scale automatically.
-8. No scientific or rendering tests exist.
-9. Equatorial coordinates are diagrammatic, not time-aware.
+1. Annotations are not yet implemented in the current object model.
+2. Most scene elements bypass the graph.
+3. `CelestialScene` has too many responsibilities.
+4. Actor lifecycle is undefined.
+5. Rendering semantics are inconsistent.
+6. Controls do not scale automatically.
+7. Rendering and lifecycle tests do not yet exist.
+8. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
 
