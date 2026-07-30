@@ -114,6 +114,7 @@ class CelestialScene:
         self.local_group = ActorScaleGroup()
         self._local_scale = 1.0
         self._title_actor: object | None = None
+        self._closed = False
         self.controls = ControlManager(
             plotter=self.plotter,
             window_size=window_size,
@@ -183,6 +184,8 @@ class CelestialScene:
         rotates or changes the viewpoint.
         """
         def refresh_after_camera_motion(*_args) -> None:
+            if self._closed:
+                return
             self._refresh_celestial_sphere()
             self.plotter.render()
 
@@ -636,3 +639,21 @@ class CelestialScene:
             screenshot=screenshot,
             auto_close=False,
         )
+
+    def close(self) -> None:
+        """Release scene graph and PyVista resources exactly once."""
+        if self._closed:
+            return
+
+        self._closed = True
+
+        observer_id = self._sphere_camera_observer_id
+        self._sphere_camera_observer_id = None
+        if observer_id is not None:
+            try:
+                self.plotter.iren.remove_observer(observer_id)
+            except (AttributeError, RuntimeError):
+                pass
+
+        self.graph.clear(render=False)
+        self.plotter.close()
