@@ -5,21 +5,21 @@ from dataclasses import dataclass
 class SceneStyle:
     background: str = "#f7f6f2"
 
-    # Main translucent volume.
-    sphere_back_color: str = "#b5cae2"
-    sphere_front_color: str = "#e0eaf5"
+    # Dynamic glass-sphere material.
+    sphere_center_color: str = "#dce8f5"
+    sphere_rim_color: str = "#456b98"
+    sphere_highlight_color: str = "#ffffff"
 
-    # Two outer shells strengthen the limb and glass edge.
-    sphere_outer_color: str = "#7094c1"
-    sphere_rim_color: str = "#496f9f"
+    # The centre remains nearly transparent. Opacity increases toward the limb.
+    sphere_center_opacity: float = 0.022
+    sphere_rim_opacity: float = 0.48
+    sphere_limb_power: float = 2.25
 
-    sphere_back_opacity: float = 0.18
-    sphere_front_opacity: float = 0.055
-    sphere_outer_opacity: float = 0.080
-    sphere_rim_opacity: float = 0.055
-
-    sphere_specular: float = 0.58
-    sphere_specular_power: float = 105.0
+    # Two specular reflections.
+    sphere_specular_strength: float = 1.00
+    sphere_specular_power: float = 72.0
+    sphere_secondary_specular_strength: float = 0.48
+    sphere_secondary_specular_power: float = 34.0
 
     horizontal_grid_color: str = "#577fb7"
     equatorial_grid_color: str = "#75638f"

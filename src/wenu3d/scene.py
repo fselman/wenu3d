@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pyvista as pv
 
+
 from .controls import GridControlPanel
 from .earth import realistic_earth
 from .frames import horizontal_frame, equatorial_frame
@@ -77,97 +78,271 @@ class CelestialScene:
         self._add_earth_and_observer()
         self._add_axis()
         self._set_camera()
+        self._refresh_celestial_sphere()
+        self._install_sphere_camera_observer()
 
     def _add_celestial_shell(self) -> None:
+        """
+        Create a transparent glass sphere using per-vertex RGBA values.
+
+        Opacity and colour depend on the angle between the surface normal and
+        the camera. This gives genuine limb darkening rather than drawing a
+        separate circular outline.
+        """
         shell = pv.Sphere(
             radius=self.sphere_radius,
             theta_resolution=360,
             phi_resolution=180,
         )
 
-        outer_shell = pv.Sphere(
-            radius=1.006 * self.sphere_radius,
-            theta_resolution=360,
-            phi_resolution=180,
+        shell.compute_normals(
+            point_normals=True,
+            cell_normals=False,
+            auto_orient_normals=True,
+            inplace=True,
         )
 
-        rim_shell = pv.Sphere(
-            radius=1.012 * self.sphere_radius,
-            theta_resolution=360,
-            phi_resolution=180,
+        self._sphere_mesh = shell
+        self._sphere_presence = 1.0
+        self._sphere_rgba_name = "celestial_sphere_rgba"
+
+        # Temporary values. They are replaced after the camera is configured.
+        shell.point_data[self._sphere_rgba_name] = np.zeros(
+            (shell.n_points, 4),
+            dtype=np.uint8,
         )
 
-        # Rear-facing surface: translucent blue volume.
-        self.sphere_back_actor = self.plotter.add_mesh(
+        self.sphere_actor = self.plotter.add_mesh(
             shell,
-            color=self.style.sphere_back_color,
-            opacity=self.style.sphere_back_opacity,
+            scalars=self._sphere_rgba_name,
+            rgba=True,
             smooth_shading=True,
-            ambient=0.58,
-            diffuse=0.30,
-            specular=0.20,
-            specular_power=35,
-            culling="front",
-        )
-
-        # Front-facing surface: reflective glass layer.
-        self.sphere_front_actor = self.plotter.add_mesh(
-            shell,
-            color=self.style.sphere_front_color,
-            opacity=self.style.sphere_front_opacity,
-            smooth_shading=True,
-            ambient=0.28,
-            diffuse=0.22,
-            specular=self.style.sphere_specular,
-            specular_power=self.style.sphere_specular_power,
+            lighting=False,
             culling="back",
+            interpolate_before_map=True,
         )
 
-        # Outer glass layer: increases limb darkening.
-        self.sphere_outer_actor = self.plotter.add_mesh(
-            outer_shell,
-            color=self.style.sphere_outer_color,
-            opacity=self.style.sphere_outer_opacity,
-            smooth_shading=True,
-            ambient=0.24,
-            diffuse=0.18,
-            specular=0.72,
-            specular_power=120,
-            culling="front",
+    def _install_sphere_camera_observer(self) -> None:
+        """
+        Recalculate the Fresnel material after camera interaction.
+
+        The sphere therefore keeps the same realistic appearance when the user
+        rotates or changes the viewpoint.
+        """
+        def refresh_after_camera_motion(*_args) -> None:
+            self._refresh_celestial_sphere()
+            self.plotter.render()
+
+        self._sphere_camera_callback = refresh_after_camera_motion
+
+        try:
+            self._sphere_camera_observer_id = (
+                self.plotter.iren.add_observer(
+                    "EndInteractionEvent",
+                    self._sphere_camera_callback,
+                )
+            )
+        except (AttributeError, RuntimeError):
+            self._sphere_camera_observer_id = None
+
+    @staticmethod
+    def _normalized_rows(vectors: np.ndarray) -> np.ndarray:
+        lengths = np.linalg.norm(
+            vectors,
+            axis=1,
+            keepdims=True,
+        )
+        lengths = np.where(lengths == 0.0, 1.0, lengths)
+        return vectors / lengths
+
+    def _refresh_celestial_sphere(self) -> None:
+        """
+        Update limb darkening and specular reflections for the current camera.
+        """
+        mesh = self._sphere_mesh
+
+        points = np.asarray(
+            mesh.points,
+            dtype=float,
+        )
+        normals = np.asarray(
+            mesh.point_data["Normals"],
+            dtype=float,
         )
 
-        # Very faint, darker outer rim.
-        self.sphere_rim_actor = self.plotter.add_mesh(
-            rim_shell,
-            color=self.style.sphere_rim_color,
-            opacity=self.style.sphere_rim_opacity,
-            smooth_shading=True,
-            ambient=0.20,
-            diffuse=0.12,
-            specular=0.78,
-            specular_power=128,
-            culling="front",
+        normals = self._normalized_rows(normals)
+
+        camera_position = np.asarray(
+            self.plotter.camera.position,
+            dtype=float,
         )
 
-        # Additional lights create more distinctly spherical reflections.
-        key_light = pv.Light(
-            position=(2.8, -2.2, 3.0),
-            focal_point=(0.0, 0.0, 0.0),
-            color="#ffffff",
-            intensity=0.55,
-            positional=True,
+        view_vectors = self._normalized_rows(
+            camera_position[None, :] - points
         )
 
-        fill_light = pv.Light(
-            position=(-2.5, -1.0, 1.7),
-            focal_point=(0.0, 0.0, 0.0),
-            color="#dbe9ff",
-            intensity=0.26,
-            positional=True,
+        normal_dot_view = np.clip(
+            np.einsum(
+                "ij,ij->i",
+                normals,
+                view_vectors,
+            ),
+            0.0,
+            1.0,
         )
 
-        self.plotter.add_light(key_light)
-        self.plotter.add_light(fill_light)
+        # Fresnel-like limb factor:
+        # 0 at the apparent centre, approaching 1 at the projected border.
+        limb = np.power(
+            1.0 - normal_dot_view,
+            self.style.sphere_limb_power,
+        )
+
+        center_rgb = np.asarray(
+            pv.Color(
+                self.style.sphere_center_color
+            ).float_rgb,
+            dtype=float,
+        )
+
+        rim_rgb = np.asarray(
+            pv.Color(
+                self.style.sphere_rim_color
+            ).float_rgb,
+            dtype=float,
+        )
+
+        highlight_rgb = np.asarray(
+            pv.Color(
+                self.style.sphere_highlight_color
+            ).float_rgb,
+            dtype=float,
+        )
+
+        # Blue-grey centre transitioning gradually to a darker blue limb.
+        rgb = (
+            center_rgb[None, :]
+            * (1.0 - limb[:, None])
+            + rim_rgb[None, :]
+            * limb[:, None]
+        )
+
+        # Fixed world-space key light.
+        key_position = np.array(
+            [2.7, -2.4, 3.1],
+            dtype=float,
+        )
+
+        key_vectors = self._normalized_rows(
+            key_position[None, :] - points
+        )
+
+        key_half_vectors = self._normalized_rows(
+            key_vectors + view_vectors
+        )
+
+        key_specular = np.power(
+            np.clip(
+                np.einsum(
+                    "ij,ij->i",
+                    normals,
+                    key_half_vectors,
+                ),
+                0.0,
+                1.0,
+            ),
+            self.style.sphere_specular_power,
+        )
+
+        # Broader secondary reflection on the opposite side.
+        secondary_position = np.array(
+            [-2.3, -0.6, 2.0],
+            dtype=float,
+        )
+
+        secondary_vectors = self._normalized_rows(
+            secondary_position[None, :] - points
+        )
+
+        secondary_half_vectors = self._normalized_rows(
+            secondary_vectors + view_vectors
+        )
+
+        secondary_specular = np.power(
+            np.clip(
+                np.einsum(
+                    "ij,ij->i",
+                    normals,
+                    secondary_half_vectors,
+                ),
+                0.0,
+                1.0,
+            ),
+            self.style.sphere_secondary_specular_power,
+        )
+
+        total_highlight = np.clip(
+            (
+                self.style.sphere_specular_strength
+                * key_specular
+                + self.style.sphere_secondary_specular_strength
+                * secondary_specular
+            ),
+            0.0,
+            1.0,
+        )
+
+        rgb = (
+            rgb * (1.0 - 0.90 * total_highlight[:, None])
+            + highlight_rgb[None, :]
+            * (0.90 * total_highlight[:, None])
+        )
+
+        rgb = np.clip(
+            rgb,
+            0.0,
+            1.0,
+        )
+
+        # Almost transparent at the centre, substantially darker at the limb.
+        alpha = (
+            self.style.sphere_center_opacity
+            + (
+                self.style.sphere_rim_opacity
+                - self.style.sphere_center_opacity
+            )
+            * limb
+        )
+
+        # Highlights need some opacity even away from the limb.
+        alpha += (
+            0.24 * key_specular
+            + 0.12 * secondary_specular
+        )
+
+        alpha *= self._sphere_presence
+
+        alpha = np.clip(
+            alpha,
+            0.0,
+            0.82,
+        )
+
+        rgba = np.empty(
+            (mesh.n_points, 4),
+            dtype=np.uint8,
+        )
+
+        rgba[:, :3] = np.rint(
+            255.0 * rgb
+        ).astype(np.uint8)
+
+        rgba[:, 3] = np.rint(
+            255.0 * alpha
+        ).astype(np.uint8)
+
+        mesh.point_data[self._sphere_rgba_name] = rgba
+        mesh.Modified()
 
     def _add_earth_and_observer(self) -> None:
         zenith = self.horizontal.pole
@@ -303,19 +478,8 @@ class CelestialScene:
             self.plotter.render()
 
         def set_sphere_presence(value: float) -> None:
-            factor = float(value)
-            self.sphere_back_actor.GetProperty().SetOpacity(
-                min(0.70, self.style.sphere_back_opacity * factor)
-            )
-            self.sphere_front_actor.GetProperty().SetOpacity(
-                min(0.30, self.style.sphere_front_opacity * factor)
-            )
-            self.sphere_outer_actor.GetProperty().SetOpacity(
-                min(0.24, self.style.sphere_outer_opacity * factor)
-            )
-            self.sphere_rim_actor.GetProperty().SetOpacity(
-                min(0.18, self.style.sphere_rim_opacity * factor)
-            )
+            self._sphere_presence = float(value)
+            self._refresh_celestial_sphere()
             self.plotter.render()
 
         self.plotter.add_slider_widget(
