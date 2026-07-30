@@ -127,18 +127,8 @@ scene.plotter.add_slider_widget(
     fmt="%.2f x",
 )
 
-# Both panels are on the left and remain visually separate.
-scene.add_grid_controls(
-    horizontal,
-    origin_x=20,
-    origin_y=990,
-)
-
-scene.add_grid_controls(
-    equatorial,
-    origin_x=180,
-    origin_y=990,
-)
+scene.add_grid_controls(horizontal)
+scene.add_grid_controls(equatorial)
 
 scene.add_global_controls()
 

@@ -7,7 +7,7 @@ import numpy as np
 import pyvista as pv
 
 
-from .controls import GridControlPanel
+from .controls import ControlManager, GridControlPanel
 from .earth import realistic_earth
 from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
@@ -93,7 +93,10 @@ class CelestialScene:
 
         self.graph = SceneGraph()
         self.local_group = ActorScaleGroup()
-        self.grid_panels: list[GridControlPanel] = []
+        self.controls = ControlManager(
+            plotter=self.plotter,
+            window_size=window_size,
+        )
 
         self._build_base_scene()
 
@@ -488,18 +491,12 @@ class CelestialScene:
     def add_grid_controls(
         self,
         grid: GridLayer,
-        *,
-        origin_x: int,
-        origin_y: int = 650,
-    ) -> None:
+    ) -> GridControlPanel:
         panel = GridControlPanel(
             plotter=self.plotter,
             grid=grid,
-            origin_x=origin_x,
-            origin_y=origin_y,
         )
-        panel.add()
-        self.grid_panels.append(panel)
+        return self.controls.register_panel(panel)
 
     def add_global_controls(self) -> None:
         def set_local_scale(value: float) -> None:

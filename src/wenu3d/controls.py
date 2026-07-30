@@ -19,6 +19,9 @@ class ControlPanel(Protocol):
     origin_x: int
     origin_y: int
 
+    @property
+    def control_size(self) -> tuple[int, int]: ...
+
     def add(self) -> None: ...
 
 
@@ -77,6 +80,26 @@ class GridControlPanel:
             float(value): True
             for value in self.grid.parallels
         }
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        """Return the pixel width and height required by this panel."""
+        row_count = (
+            3
+            + len(self.meridian_states)
+            + len(self.parallel_states)
+        )
+        height = (
+            34
+            + row_count * self.row_height
+            + 16
+        )
+        width = (
+            self.indent
+            + self.checkbox_size
+            + 112
+        )
+        return width, height
 
     def add(self) -> None:
         y = self.origin_y
@@ -356,13 +379,11 @@ class ControlManager:
     def register_panel(
         self,
         panel: PanelT,
-        *,
-        width: int,
-        height: int,
     ) -> PanelT:
         """Place, add, and retain one panel for the scene lifetime."""
         if any(existing is panel for existing in self.panels):
             raise ValueError("Control panel is already registered.")
+        width, height = panel.control_size
         if width <= 0 or height <= 0:
             raise ValueError(
                 "Control panel width and height must be positive."

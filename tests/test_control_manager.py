@@ -3,13 +3,21 @@ from unittest.mock import Mock
 
 import pytest
 
-from wenu3d.controls import ControlManager, PanelPlacement
+from wenu3d.controls import (
+    ControlManager,
+    GridControlPanel,
+    PanelPlacement,
+)
+from wenu3d.frames import horizontal_frame
+from wenu3d.grid import GridLayer
+from wenu3d.scene import CelestialScene
 
 
 @dataclass
 class FakePanel:
     origin_x: int = -1
     origin_y: int = -1
+    control_size: tuple[int, int] = (100, 150)
     add_count: int = 0
 
     def add(self) -> None:
@@ -30,15 +38,47 @@ def make_manager(
     return manager, plotter
 
 
+def make_grid() -> GridLayer:
+    return GridLayer(
+        name="horizontal",
+        frame=horizontal_frame(),
+        meridians_deg=(0.0, 90.0),
+        parallels_deg=(0.0,),
+    )
+
+
+def test_grid_panel_reports_size_from_its_content() -> None:
+    panel = GridControlPanel(
+        plotter=Mock(),
+        grid=make_grid(),
+    )
+
+    assert panel.control_size == (150, 188)
+
+
+def test_scene_registers_grid_panel_without_coordinates() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.plotter = Mock()
+    scene.controls = Mock()
+    scene.controls.register_panel.side_effect = lambda panel: panel
+
+    panel = scene.add_grid_controls(make_grid())
+
+    assert isinstance(panel, GridControlPanel)
+    scene.controls.register_panel.assert_called_once_with(panel)
+
+
 def test_control_manager_stacks_then_wraps_panels() -> None:
     manager, _ = make_manager()
     first = FakePanel()
     second = FakePanel()
     third = FakePanel()
 
-    manager.register_panel(first, width=100, height=150)
-    manager.register_panel(second, width=100, height=150)
-    manager.register_panel(third, width=120, height=100)
+    third.control_size = (120, 100)
+
+    manager.register_panel(first)
+    manager.register_panel(second)
+    manager.register_panel(third)
 
     assert (first.origin_x, first.origin_y) == (20, 380)
     assert (second.origin_x, second.origin_y) == (20, 220)
@@ -55,20 +95,20 @@ def test_control_manager_stacks_then_wraps_panels() -> None:
 def test_control_manager_rejects_duplicate_panel() -> None:
     manager, _ = make_manager()
     panel = FakePanel()
-    manager.register_panel(panel, width=100, height=100)
+    manager.register_panel(panel)
 
     with pytest.raises(ValueError, match="already registered"):
-        manager.register_panel(panel, width=100, height=100)
+        manager.register_panel(panel)
 
     assert panel.add_count == 1
 
 
 def test_control_manager_rejects_panel_that_cannot_fit() -> None:
     manager, _ = make_manager(window_size=(200, 200))
-    panel = FakePanel()
+    panel = FakePanel(control_size=(180, 100))
 
     with pytest.raises(ValueError, match="does not fit"):
-        manager.register_panel(panel, width=180, height=100)
+        manager.register_panel(panel)
 
     assert panel.add_count == 0
     assert manager.panels == []
