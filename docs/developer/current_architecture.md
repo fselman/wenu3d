@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.2
+**Version:** 0.5
 **Date:** 2026-07-30  
-**Status:** Description of `feature/interactive-grid-controls`
+**Status:** Description of `feature/interactive-grid-controls` through M5
 
 ## 1. Purpose
 
@@ -26,7 +26,8 @@ that integration does not yet exist.
 | `scene_object.py` | Base drawable object and actor state |
 | `layer.py` | Composite collection of scene objects |
 | `grid.py` | Grid styles, curves, and layers |
-| `controls.py` | Interactive grid controls |
+| `annotations.py` | Annotation records, objects, styles, and layers |
+| `controls.py` | Managed grid, annotation, and global controls |
 | `earth.py` | Earth mesh loading and orientation |
 | `observer.py` | Tangent plane and observer figure |
 | `local_group.py` | Scaling a raw group of actors |
@@ -111,7 +112,16 @@ supports:
 `CelestialScene.make_horizontal_grid()` and `make_equatorial_grid()` are
 factories. The resulting layer must be added explicitly with `scene.add()`.
 
+Grid label layers are created with `GridLayer.make_label_layer()`. Their
+anchors are specified independently for meridians and parallels, and each
+label retains the name of its associated grid curve.
+
 ## 6. Controls
+
+`ControlManager` owns panel registration, widget lifetime, collision-aware
+pixel layout, state synchronization, and nested render batching. Callers add
+supported panels without calculating coordinates; the manager stacks panels
+and wraps them into additional columns within the configured window.
 
 `GridControlPanel` provides three visibility levels:
 
@@ -119,12 +129,23 @@ factories. The resulting layer must be added explicitly with `scene.add()`.
 2. meridian or parallel family;
 3. individual curve.
 
-Family hiding preserves individual selections. Global sliders control shell
-presence and local-object scale.
+Family hiding preserves individual selections. Whole-grid hiding uses inherited
+layer visibility and therefore also preserves curve selections. Grid and
+individual-curve widgets initialize from the model and can be synchronized
+after programmatic model changes.
 
-Current limitations are manual pixel positioning, fixed vertical layout,
-grid-specific control logic, no annotation controls, and no automatic
-synchronization when object state changes outside widgets.
+`AnnotationControlPanel` controls visibility and text-size scale for one or
+more annotation layers. `GlobalControlPanel` controls shell presence and
+local-object scale and provides a momentary camera-reset action. These panels
+also synchronize their widget representations from current model state.
+
+The canonical example registers two grid panels, one shared annotation panel,
+and one global panel without specifying panel coordinates.
+
+Current limitations are that panel dimensions remain fixed in pixels, grid
+hierarchy is still implemented by a grid-specific panel, and there is no
+general capability-driven control factory. Restore-defaults is deferred
+because scene objects do not yet retain a universal creation-time state.
 
 ## 7. Celestial shell and local illustration
 
@@ -150,9 +171,10 @@ opacities. Other rendering and widget constants remain hard-coded.
 `show(screenshot=...)` opens the window, optionally writes a screenshot, and
 uses `auto_close=False`.
 
-There is no separate API for deterministic batch rendering, headless export,
-transparent backgrounds, camera presets, complete scene cleanup, or resource
-cleanup.
+The scene has one canonical camera configuration and a public
+`reset_camera()` action. There is no explicit serializable camera-state object
+and no separate API for deterministic batch rendering, headless export,
+transparent backgrounds, complete scene cleanup, or resource cleanup.
 
 Visibility, opacity, detach, remove, and clear operations honor their `render`
 argument. The current grid object path supports safe detach and rebuild without
@@ -162,9 +184,18 @@ shell-object work planned for M7.
 
 ## 10. Annotation state
 
-The obsolete label implementation was removed in M1. Annotations are not yet
-part of the scene graph and are absent from the active example. First-class
-annotations are planned for M4.
+`Annotation` is a renderer-neutral record containing text, a 3D anchor,
+offset, style, visibility, and an optional association name.
+
+`AnnotationObject` is a `SceneObject` that renders one record as a
+camera-facing point label. `AnnotationLayer` owns named annotation objects,
+supports layer visibility and text-size scaling, and rebuilds its children
+safely when text properties change.
+
+Grid labels and manual scientific callouts use the same annotation object
+path. The canonical example includes selected horizontal-grid labels and a
+Spanish callout for the south celestial pole. Annotation selection remains
+independent from associated curve visibility.
 
 ## 11. Verification state
 
@@ -183,8 +214,30 @@ dimensions.
 
 M3 lifecycle tests verify safe detach, rebuild on the same or another plotter,
 stable actor counts, graph ordering/removal/clearing, inherited visibility,
-retained child selections, and render requests. The repository does not yet
-automatically verify Earth orientation or canonical example execution.
+retained child selections, and render requests.
+
+M4 tests verify annotation records, validation, object rendering, layer
+lifecycle, grid-label anchors and associations, visibility, and text-size
+scaling.
+
+M5 tests verify:
+
+- panel registration, placement, wrapping, and overlap detection;
+- nested render batching;
+- annotation, global, grid, family, and individual state synchronization;
+- preservation of curve selections while grids or families are hidden;
+- compact slider placement within declared panel footprints;
+- the canonical camera-reset action.
+
+The M5 roadmap gate is satisfied:
+
+- the canonical example calculates no panel coordinates;
+- managed panels fit its supported `1800 × 1200` window;
+- widgets reflect initial and subsequently synchronized model state;
+- the object and rendering paths remain usable without registering controls.
+
+The repository does not yet automatically execute the canonical interactive
+example or verify Earth orientation.
 
 ## 12. Strengths
 
@@ -192,24 +245,26 @@ automatically verify Earth orientation or canonical example execution.
 2. Reusable `SphericalFrame`.
 3. Appropriate `Scene → Layer → SceneObject` direction.
 4. Individually addressable grid curves.
-5. Separation of grid controls from the scene class.
-6. Small codebase suitable for incremental improvement.
+5. First-class annotations through the object model.
+6. Managed controls with layout, synchronization, and render batching.
+7. Small codebase suitable for incremental improvement.
 
 ## 13. Liabilities
 
-1. Annotations are not yet implemented in the current object model.
-2. Most scene elements bypass the graph.
-3. `CelestialScene` has too many responsibilities.
-4. Shell callback lifecycle remains embedded in `CelestialScene`.
-5. Full-scene cleanup and deterministic export are not yet available.
-6. Controls do not scale automatically.
+1. Most scene elements bypass the graph.
+2. `CelestialScene` has too many responsibilities.
+3. Shell callback lifecycle remains embedded in `CelestialScene`.
+4. Full-scene cleanup and deterministic export are not yet available.
+5. Controls use fixed pixel footprints and object-specific panel classes.
+6. Restore-default behavior has no model-level definition.
 7. Full-scene rendering tests do not yet exist.
 8. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
 
 Wenu3D currently owns diagrammatic geometry, PyVista rendering, fixed scene
-composition, grid controls, and screenshots.
+composition, first-class annotations, managed interactive controls, a
+canonical camera reset, and screenshots.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
