@@ -1,3 +1,4 @@
+from .annotations import Annotation, AnnotationStyle
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .curves import Meridian, Parallel
 from .grid import GridStyle, GridCurveObject, GridLayer
@@ -7,6 +8,8 @@ from .scene import CelestialScene, SceneGraph
 from .style import SceneStyle
 
 __all__ = [
+    "Annotation",
+    "AnnotationStyle",
     "SphericalFrame",
     "horizontal_frame",
     "equatorial_frame",
