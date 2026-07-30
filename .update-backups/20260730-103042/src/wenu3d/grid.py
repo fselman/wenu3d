@@ -16,10 +16,10 @@ from .layer import Layer
 @dataclass
 class GridStyle:
     color: str = "#666666"
-    major_radius: float = 0.0036
-    minor_radius: float = 0.0018
-    major_opacity: float = 0.78
-    minor_opacity: float = 0.42
+    major_radius: float = 0.0060
+    minor_radius: float = 0.0025
+    major_opacity: float = 0.82
+    minor_opacity: float = 0.33
     label_format: str = "{value:g} deg"
     label_offset: float = 0.025
 
@@ -140,30 +140,8 @@ class GridLayer(Layer):
             self.parallels[value] = obj
             self.add(obj)
 
-    def set_meridian_visible(
-        self,
-        value_deg: float,
-        visible: bool,
-    ) -> None:
-        self.meridians[float(value_deg)].set_visible(
-            visible,
-            render=False,
-        )
+    def set_meridian_visible(self, value_deg: float, visible: bool) -> None:
+        self.meridians[float(value_deg)].set_visible(visible, render=False)
 
-    def set_parallel_visible(
-        self,
-        value_deg: float,
-        visible: bool,
-    ) -> None:
-        self.parallels[float(value_deg)].set_visible(
-            visible,
-            render=False,
-        )
-
-    def set_all_meridians_visible(self, visible: bool) -> None:
-        for meridian in self.meridians.values():
-            meridian.set_visible(visible, render=False)
-
-    def set_all_parallels_visible(self, visible: bool) -> None:
-        for parallel in self.parallels.values():
-            parallel.set_visible(visible, render=False)
+    def set_parallel_visible(self, value_deg: float, visible: bool) -> None:
+        self.parallels[float(value_deg)].set_visible(visible, render=False)

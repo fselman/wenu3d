@@ -81,53 +81,30 @@ class CelestialScene:
     def _add_celestial_shell(self) -> None:
         shell = pv.Sphere(
             radius=self.sphere_radius,
-            theta_resolution=360,
-            phi_resolution=180,
+            theta_resolution=300,
+            phi_resolution=150,
         )
-
-        outer_shell = pv.Sphere(
-            radius=1.006 * self.sphere_radius,
-            theta_resolution=360,
-            phi_resolution=180,
-        )
-
-        # Back-facing shell gives the sphere its pale blue body.
         self.sphere_back_actor = self.plotter.add_mesh(
             shell,
             color=self.style.sphere_back_color,
             opacity=self.style.sphere_back_opacity,
             smooth_shading=True,
-            ambient=0.72,
-            diffuse=0.22,
-            specular=0.10,
-            specular_power=24,
+            ambient=0.70,
+            diffuse=0.25,
+            specular=0.08,
+            specular_power=12,
             culling="front",
         )
-
-        # Front-facing shell behaves like faint glass over interior objects.
         self.sphere_front_actor = self.plotter.add_mesh(
             shell,
             color=self.style.sphere_front_color,
             opacity=self.style.sphere_front_opacity,
             smooth_shading=True,
-            ambient=0.45,
-            diffuse=0.18,
+            ambient=0.50,
+            diffuse=0.20,
             specular=self.style.sphere_specular,
             specular_power=self.style.sphere_specular_power,
             culling="back",
-        )
-
-        # A slightly larger shell strengthens the blue outer rim.
-        self.sphere_outer_actor = self.plotter.add_mesh(
-            outer_shell,
-            color=self.style.sphere_outer_color,
-            opacity=self.style.sphere_outer_opacity,
-            smooth_shading=True,
-            ambient=0.30,
-            diffuse=0.12,
-            specular=0.55,
-            specular_power=100,
-            culling="front",
         )
 
     def _add_earth_and_observer(self) -> None:
@@ -220,7 +197,7 @@ class CelestialScene:
             parallels_deg=parallels_deg,
             major_meridians_deg=(0, 90, 180, 270),
             major_parallels_deg=(0,),
-            radius=0.992 * self.sphere_radius,
+            radius=1.018 * self.sphere_radius,
             style=GridStyle(color=self.style.horizontal_grid_color),
         )
 
@@ -238,7 +215,7 @@ class CelestialScene:
             parallels_deg=parallels_deg,
             major_meridians_deg=(0, 90, 180, 270),
             major_parallels_deg=(0,),
-            radius=0.988 * self.sphere_radius,
+            radius=1.022 * self.sphere_radius,
             style=GridStyle(color=self.style.equatorial_grid_color),
         )
 
@@ -270,9 +247,6 @@ class CelestialScene:
             )
             self.sphere_front_actor.GetProperty().SetOpacity(
                 min(0.30, self.style.sphere_front_opacity * factor)
-            )
-            self.sphere_outer_actor.GetProperty().SetOpacity(
-                min(0.22, self.style.sphere_outer_opacity * factor)
             )
             self.plotter.render()
 
