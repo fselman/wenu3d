@@ -27,7 +27,13 @@ meridians = (
     330,
 )
 
-parallels = (-60, -30, 0, 30, 60)
+parallels = (
+    -60,
+    -30,
+    0,
+    30,
+    60,
+)
 
 horizontal = scene.make_horizontal_grid(
     meridians_deg=meridians,
@@ -41,17 +47,17 @@ equatorial = scene.make_equatorial_grid(
 )
 scene.add(equatorial)
 
-# Both panels remain on the left. Each panel is vertical internally.
+# Both panels are on the left and remain visually separate.
 scene.add_grid_controls(
     horizontal,
     origin_x=20,
-    origin_y=960,
+    origin_y=990,
 )
 
 scene.add_grid_controls(
     equatorial,
-    origin_x=175,
-    origin_y=960,
+    origin_x=180,
+    origin_y=990,
 )
 
 scene.add_global_controls()
