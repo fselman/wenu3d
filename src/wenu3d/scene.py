@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -22,6 +23,12 @@ from .style import SceneStyle
 class SceneGraph:
     layers: dict[str, Layer] = field(default_factory=dict)
 
+    def __iter__(self) -> Iterator[Layer]:
+        return iter(self.layers.values())
+
+    def __len__(self) -> int:
+        return len(self.layers)
+
     def add(self, layer: Layer) -> Layer:
         if layer.name in self.layers:
             raise ValueError(f"Layer already exists: {layer.name}")
@@ -30,6 +37,28 @@ class SceneGraph:
 
     def get(self, name: str) -> Layer:
         return self.layers[name]
+
+    def remove(self, name: str, *, render: bool = True) -> Layer:
+        layer = self.layers.pop(name)
+        layer.detach(render=render)
+        return layer
+
+    def clear(self, *, render: bool = True) -> None:
+        attached_plotters: dict[int, pv.Plotter] = {}
+        for layer in self.layers.values():
+            plotter = layer.attached_plotter
+            if plotter is not None:
+                attached_plotters[id(plotter)] = plotter
+
+        layers = tuple(self.layers.values())
+        self.layers.clear()
+
+        for layer in layers:
+            layer.detach(render=False)
+
+        if render:
+            for plotter in attached_plotters.values():
+                plotter.render()
 
 
 class CelestialScene:

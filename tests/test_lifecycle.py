@@ -2,11 +2,12 @@ import pyvista as pv
 
 from wenu3d.frames import horizontal_frame
 from wenu3d.grid import GridLayer
+from wenu3d.scene import SceneGraph
 
 
-def make_grid() -> GridLayer:
+def make_grid(name: str = "lifecycle") -> GridLayer:
     return GridLayer(
-        name="lifecycle",
+        name=name,
         frame=horizontal_frame(),
         meridians_deg=(0.0, 90.0),
         parallels_deg=(0.0,),
@@ -82,5 +83,55 @@ def test_layer_visibility_preserves_child_selection() -> None:
         grid.set_visible(True, render=False)
         assert not hidden.actors[0].GetVisibility()
         assert selected.actors[0].GetVisibility()
+    finally:
+        plotter.close()
+
+
+def test_scene_graph_iterates_in_insertion_order() -> None:
+    graph = SceneGraph()
+    first = make_grid("first")
+    second = make_grid("second")
+
+    graph.add(first)
+    graph.add(second)
+
+    assert len(graph) == 2
+    assert list(graph) == [first, second]
+
+
+def test_scene_graph_remove_detaches_and_returns_layer() -> None:
+    plotter = pv.Plotter(off_screen=True)
+    graph = SceneGraph()
+    grid = graph.add(make_grid())
+
+    try:
+        grid.build(plotter)
+        removed = graph.remove(grid.name, render=False)
+
+        assert removed is grid
+        assert len(graph) == 0
+        assert len(plotter.renderer.actors) == 0
+        assert grid.actors == []
+    finally:
+        plotter.close()
+
+
+def test_scene_graph_clear_detaches_all_layers() -> None:
+    plotter = pv.Plotter(off_screen=True)
+    graph = SceneGraph()
+    first = make_grid("first")
+    second = make_grid("second")
+    graph.add(first)
+    graph.add(second)
+
+    try:
+        first.build(plotter)
+        second.build(plotter)
+        graph.clear(render=False)
+
+        assert len(graph) == 0
+        assert len(plotter.renderer.actors) == 0
+        assert first.actors == []
+        assert second.actors == []
     finally:
         plotter.close()

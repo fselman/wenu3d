@@ -27,6 +27,10 @@ class SceneObject:
     def build(self, plotter: pv.Plotter) -> None:
         raise NotImplementedError
 
+    @property
+    def attached_plotter(self) -> pv.Plotter | None:
+        return self._plotter
+
     def _prepare_build(self, plotter: pv.Plotter) -> None:
         """Remove an earlier build and attach this object to ``plotter``."""
         self.detach(render=False)
