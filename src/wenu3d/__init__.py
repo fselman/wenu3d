@@ -4,6 +4,7 @@ from .annotations import (
     AnnotationObject,
     AnnotationStyle,
 )
+from .controls import ControlManager, PanelPlacement
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .curves import Meridian, Parallel
 from .grid import GridStyle, GridCurveObject, GridLayer
@@ -17,6 +18,8 @@ __all__ = [
     "AnnotationLayer",
     "AnnotationObject",
     "AnnotationStyle",
+    "ControlManager",
+    "PanelPlacement",
     "SphericalFrame",
     "horizontal_frame",
     "equatorial_frame",
