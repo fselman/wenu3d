@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.20
+**Version:** 0.21
 **Date:** 2026-07-31
-**Status:** Description through M9.6.1 on `feature/interactive-grid-controls`
+**Status:** Description through M9.6.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -282,8 +282,15 @@ direct actor created by the scene.
 M9.6. It contains a finite translation and positive uniform scale and applies
 the correct affine semantics to points, free vectors, directions, and lengths.
 It also provides inverse, ordered composition, and a homogeneous 4-by-4
-matrix. M9.6.1 is additive: this transform is not yet attached to
-`LocalCartoonLayer`, and `ActorScaleGroup` remains the canonical scale path.
+matrix. `LocalCartoonLayer` owns one such transform and uses it for transformed
+point, observer-position, and named semantic-anchor queries. One transform is
+shared by Earth and every observer composition.
+
+M9.6.2 does not yet connect that state to actors. To prevent model/render
+disagreement, a non-identity layer may be queried only while unattached;
+attaching it or assigning a non-identity transform to an attached layer raises
+explicitly. The canonical layer remains at identity, and `ActorScaleGroup`
+remains its scale path until the next rendering checkpoint.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -574,6 +581,11 @@ semantics, transformed lengths, batched geometry, inverse round trips, ordered
 composition, homogeneous matrices, and invalid transform or query values. It
 does not alter actors or canonical scene composition.
 
+M9.6.2 tests verify identity transform ownership, transformed points, observer
+positions and representation anchors, one shared transform across multiple
+observers, transform validation, canonical identity queries, and explicit
+rejection of unrendered non-identity transforms on attached layers.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -607,8 +619,8 @@ pixel-based texture-orientation regression test.
 7. Equatorial coordinates are diagrammatic, not time-aware.
 8. Optional platform decorations are not yet selectable through canonical
    scene construction or interactive controls.
-9. `LocalCartoonTransform` is not yet authoritative for scene rendering or
-   semantic-anchor queries.
+9. `LocalCartoonTransform` is authoritative for local-cartoon queries but is
+   not yet connected to actor rendering.
 
 ## 15. Current boundary
 

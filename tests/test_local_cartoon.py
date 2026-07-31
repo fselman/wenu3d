@@ -8,6 +8,7 @@ from wenu3d.frames import horizontal_frame
 from wenu3d.local_cartoon import LocalCartoonLayer
 from wenu3d.observer import ObserverComposition, ObserverRepresentation
 from wenu3d.observer_model import Observer
+from wenu3d.transforms import LocalCartoonTransform
 
 
 class DummyRepresentation(ObserverRepresentation):
@@ -31,10 +32,13 @@ def make_earth() -> EarthObject:
     )
 
 
-def make_composition(name: str) -> ObserverComposition:
+def make_composition(
+    name: str,
+    position=(0.0, 0.0, 0.25),
+) -> ObserverComposition:
     observer = Observer(
         name=name,
-        position=np.array([0.0, 0.0, 0.25]),
+        position=np.asarray(position, dtype=float),
         frame=horizontal_frame(),
     )
     representation = DummyRepresentation(
@@ -98,3 +102,73 @@ def test_local_cartoon_validates_observer_composition() -> None:
 
     with pytest.raises(TypeError, match="ObserverComposition"):
         layer.add_observer(object())
+
+
+def test_local_cartoon_defaults_to_identity_transform() -> None:
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+
+    assert layer.transform == LocalCartoonTransform.identity()
+    np.testing.assert_allclose(
+        layer.transform_points([1.0, 2.0, 3.0]),
+        [1.0, 2.0, 3.0],
+    )
+
+
+def test_transformed_observer_position_and_anchor_use_one_transform() -> None:
+    transform = LocalCartoonTransform(
+        translation=(1.0, 2.0, 3.0),
+        scale=2.0,
+    )
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=transform,
+    )
+    composition = make_composition("navigator")
+    layer.add_observer(composition)
+
+    expected = transform.apply_points(composition.observer.position)
+    np.testing.assert_allclose(layer.observer_position("navigator"), expected)
+    np.testing.assert_allclose(layer.observer_anchor("navigator", "feet"), expected)
+
+
+def test_shared_transform_applies_to_multiple_observers() -> None:
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    first = make_composition("first")
+    second = make_composition("second", position=(0.0, 0.0, -0.25))
+    layer.add_observer(first)
+    layer.add_observer(second)
+    layer.set_transform(LocalCartoonTransform(translation=(1.0, 0.0, 0.0), scale=0.5))
+
+    np.testing.assert_allclose(layer.observer_position("first"), [1.0, 0.0, 0.125])
+    np.testing.assert_allclose(layer.observer_position("second"), [1.0, 0.0, -0.125])
+
+
+def test_local_cartoon_validates_transform() -> None:
+    with pytest.raises(TypeError, match="LocalCartoonTransform"):
+        LocalCartoonLayer(name="local", earth=make_earth(), transform=object())
+
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    with pytest.raises(TypeError, match="LocalCartoonTransform"):
+        layer.set_transform(object())
+
+
+def test_attached_layer_rejects_unrendered_non_identity_transform() -> None:
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    layer._plotter = Mock()
+
+    with pytest.raises(RuntimeError, match="actor transforms"):
+        layer.set_transform(LocalCartoonTransform(scale=0.5))
+
+    assert layer.transform == LocalCartoonTransform.identity()
+
+
+def test_non_identity_layer_cannot_attach_before_render_path_exists() -> None:
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=LocalCartoonTransform(scale=0.5),
+    )
+
+    with pytest.raises(RuntimeError, match="actor transforms"):
+        layer.build(Mock())

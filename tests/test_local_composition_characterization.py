@@ -232,6 +232,11 @@ def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
     scene.local_group.add.assert_not_called()
     assert scene.local_group.extend.call_args_list == [call(local_cartoon.actors)]
     assert local_cartoon.actors[-7:] == observer_actors
+    assert local_cartoon.transform.scale == 1.0
+    np.testing.assert_allclose(
+        local_cartoon.observer_anchor("canonical_observer", "feet"),
+        scene.observer.position,
+    )
 
 
 def test_current_stick_figure_builds_seven_raw_actors() -> None:

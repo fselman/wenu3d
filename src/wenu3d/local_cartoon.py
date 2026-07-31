@@ -6,6 +6,7 @@ from .earth import EarthObject
 from .layer import Layer
 from .observer import ObserverComposition
 from .scene_object import SceneObject
+from .transforms import LocalCartoonTransform
 
 
 class LocalCartoonLayer(Layer):
@@ -16,13 +17,19 @@ class LocalCartoonLayer(Layer):
         *,
         name: str,
         earth: EarthObject,
+        transform: LocalCartoonTransform | None = None,
         visible: bool = True,
         opacity: float = 1.0,
     ) -> None:
         if not isinstance(earth, EarthObject):
             raise TypeError("earth must be an EarthObject.")
+        if transform is None:
+            transform = LocalCartoonTransform.identity()
+        if not isinstance(transform, LocalCartoonTransform):
+            raise TypeError("transform must be a LocalCartoonTransform.")
         super().__init__(name=name, visible=visible, opacity=opacity)
         self.earth = earth
+        self.transform = transform
         self._observer_compositions: dict[str, ObserverComposition] = {}
         super().add(earth)
 
@@ -58,3 +65,34 @@ class LocalCartoonLayer(Layer):
 
     def get_observer(self, name: str) -> ObserverComposition:
         return self._observer_compositions[name]
+
+    def set_transform(self, transform: LocalCartoonTransform) -> None:
+        if not isinstance(transform, LocalCartoonTransform):
+            raise TypeError("transform must be a LocalCartoonTransform.")
+        if self.attached_plotter is not None and not self._is_identity(transform):
+            raise RuntimeError(
+                "Non-identity actor transforms are not connected yet."
+            )
+        self.transform = transform
+
+    def transform_points(self, points):
+        return self.transform.apply_points(points)
+
+    def observer_position(self, observer: str):
+        composition = self.get_observer(observer)
+        return self.transform.apply_points(composition.observer.position)
+
+    def observer_anchor(self, observer: str, anchor: str):
+        composition = self.get_observer(observer)
+        return self.transform.apply_points(composition.anchor(anchor))
+
+    def build(self, plotter) -> None:
+        if not self._is_identity(self.transform):
+            raise RuntimeError(
+                "Non-identity actor transforms are not connected yet."
+            )
+        super().build(plotter)
+
+    @staticmethod
+    def _is_identity(transform: LocalCartoonTransform) -> bool:
+        return transform == LocalCartoonTransform.identity()
