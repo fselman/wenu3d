@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.9
+**Version:** 0.10
 **Date:** 2026-07-31
-**Status:** Description of `feature/interactive-grid-controls` through M9.1
+**Status:** Description of `feature/interactive-grid-controls` through M9.2
 
 ## 1. Purpose
 
@@ -21,6 +21,7 @@ that integration does not yet exist.
 |---|---|
 | `geometry.py` | Vector normalization |
 | `frames.py` | Orthonormal spherical frames |
+| `geography.py` | Spherical Earth-fixed positions and local ENU frames |
 | `curves.py` | Sampled Cartesian curves, styles, meridians, and parallels |
 | `arcs.py` | Renderer-neutral partial great-circle and small-circle geometry |
 | `camera.py` | Validated, renderer-neutral camera state |
@@ -69,6 +70,19 @@ convention is +x East, +y North, and +z Zenith.
 chooses zero longitude on the upper local meridian. It therefore illustrates
 equatorial geometry but does not define absolute right ascension: observation
 time, sidereal time, and epoch are absent.
+
+`earth_fixed_frame()` defines one renderer-neutral spherical world frame:
+longitude zero on +x, longitude 90 degrees East on +y, and the geographic
+north pole on +z. `geographic_position()` maps a spherical latitude,
+east-positive longitude, and radius into that frame. This is deliberately a
+spherical cartoon-Earth model, not an ellipsoidal geodetic conversion.
+
+`local_enu_frame()` derives East, North, and Zenith at any geographic site in
+the same Earth-fixed frame. At either geographic pole, longitude selects the
+limiting local meridian and therefore fixes otherwise non-unique East and
+North directions without division by `cos(latitude)`. These functions are
+public renderer-neutral geometry; the current `CelestialScene` does not yet
+consume them, so its accepted single-observer appearance is unchanged.
 
 `Meridian` and `Parallel` are immutable, renderer-neutral sampled geometry
 objects. `SampledCurve` generalizes ordered finite Cartesian samples with
@@ -405,6 +419,12 @@ platform, raw local actor membership, ungrouped celestial axis, and
 independence of centered grid geometry from raw local-actor scaling. M9.1 adds
 no runtime implementation.
 
+M9.2 tests verify the Earth-fixed world axes, known equatorial and polar
+positions, La Ligua's finite position and tangent frame, stable polar frames,
+antipodal positions and zeniths, frame orthonormality and handedness, radius
+handling, and invalid coordinates. M9.2 is additive geometry and does not
+integrate the new frame with rendering or scene composition.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -423,6 +443,7 @@ pixel-based texture-orientation regression test.
 10. Renderer-neutral finite markers, segments, curves, arcs, and planes.
 11. Reusable primitive renderers with uniform lifecycle behavior.
 12. Mixed scientific explanations grouped by `IllustrationLayer`.
+13. Renderer-neutral spherical Earth-fixed positions and local ENU frames.
 
 ## 14. Liabilities
 
@@ -443,7 +464,8 @@ reproducible camera, deterministic interactive/off-screen rendering,
 configurable image export, explicit cleanup, and a lifecycle-managed celestial
 shell. It also owns renderer-neutral finite marker, segment, sight-line,
 sampled-curve, spherical-arc, and rectangular-plane records; their PyVista
-scene objects; and mixed illustration layers.
+scene objects; mixed illustration layers; and spherical Earth-fixed geographic
+positions and local ENU frames.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
