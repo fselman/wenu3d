@@ -22,6 +22,7 @@ from .curves import (
 )
 from .curve_object import CurveObject
 from .grid import GridStyle, GridCurveObject, GridLayer
+from .illustration import IllustrationLayer
 from .layer import Layer
 from .markers import Marker, MarkerShape, MarkerStyle
 from .marker_object import MarkerObject
@@ -57,6 +58,7 @@ __all__ = [
     "GridStyle",
     "GridCurveObject",
     "GridLayer",
+    "IllustrationLayer",
     "Layer",
     "Marker",
     "MarkerObject",
