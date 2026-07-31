@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.6
-**Date:** 2026-07-30  
-**Status:** Description of `feature/interactive-grid-controls` through M6
+**Version:** 0.7
+**Date:** 2026-07-31
+**Status:** Description of `feature/interactive-grid-controls` through M7
 
 ## 1. Purpose
 
@@ -29,11 +29,12 @@ that integration does not yet exist.
 | `grid.py` | Grid styles, curves, and layers |
 | `annotations.py` | Annotation records, objects, styles, and layers |
 | `controls.py` | Managed grid, annotation, and global controls |
+| `shell.py` | Celestial-shell mesh, material, presence, and callback lifecycle |
 | `earth.py` | Earth mesh loading and orientation |
 | `observer.py` | Tangent plane and observer figure |
 | `local_group.py` | Scaling a raw group of actors |
 | `style.py` | Flat scene styling |
-| `scene.py` | Composition, shell, camera, rendering, grids, and controls |
+| `scene.py` | Scene composition, camera, rendering, grids, and controls |
 
 `examples/la_ligua_interactive_grids.py` is the canonical example and uses the
 current API.
@@ -91,8 +92,8 @@ ancestor layer remains hidden.
 protection and lookup. It preserves insertion order, supports ordered
 iteration and length, and provides actor-safe `remove()` and `clear()`.
 
-Only the grid system follows this object model. The shell, Earth, plane,
-observer, arrows, and axis are created directly by `CelestialScene`.
+The grid and celestial shell follow this object model. Earth, plane, observer,
+arrows, and axis are still created directly by `CelestialScene`.
 `ActorScaleGroup` is consequently a second actor-management mechanism outside
 the graph.
 
@@ -150,10 +151,16 @@ because scene objects do not yet retain a universal creation-time state.
 
 ## 7. Celestial shell and local illustration
 
-The shell is a high-resolution sphere with camera-dependent per-vertex RGBA
-values, limb emphasis, and two specular sources. A camera interaction callback
-refreshes it. The implementation and callback lifecycle are embedded in
-`CelestialScene`.
+The shell is a `CelestialShellObject` inside the named `celestial_shell`
+layer. It owns a high-resolution sphere with camera-dependent per-vertex RGBA
+values, limb emphasis, two specular sources, presence, its PyVista actor, and
+its camera interaction callback. Rebuild and detach replace or remove both the
+actor and callback through the standard scene-object lifecycle.
+
+`CelestialScene` creates and retains the shell object for camera refresh and
+global presence controls, but it no longer implements shell mesh, material, or
+callback behavior. The shell layer is cleared with the rest of the
+`SceneGraph` during scene cleanup.
 
 Earth orientation, tangent plane, observer, arrows, and celestial axis are
 also constructed directly by `CelestialScene`. Their styling contains several
@@ -190,15 +197,14 @@ transparent RGBA output. Repeated render and save calls reuse the existing
 scene content: the title is added once, graph layers are not rebuilt, and
 controls are synchronized without requesting an extra render.
 
-`close()` unregisters the shell camera observer, clears attached graph layers
-without rendering, and closes the plotter. Repeated cleanup is harmless, and
-the callback ignores late interaction events during teardown.
+`close()` clears attached graph layers without rendering and closes the
+plotter. Clearing the shell layer unregisters its camera observer and removes
+its actor. Repeated cleanup is harmless, and a detached shell callback ignores
+late interaction events.
 
 Visibility, opacity, detach, remove, and clear operations honor their `render`
-argument. The current grid object path supports safe detach and rebuild without
-actor accumulation. The shell camera callback remains embedded in
-`CelestialScene`; moving and managing that callback belongs to the explicit
-shell-object work planned for M7.
+argument. The current grid and shell object paths support safe detach and
+rebuild without actor or callback accumulation.
 
 ## 10. Annotation state
 
@@ -271,6 +277,25 @@ The M6 roadmap gate is satisfied:
 - configurable RGB and RGBA export is available;
 - the canonical interactive example and controls remain operational.
 
+M7 tests verify:
+
+- shell mesh resolution, normals, RGBA storage, and actor configuration;
+- camera-dependent material refresh and fully transparent zero presence;
+- callback installation, optional interactor behavior, and safe late events;
+- actor and callback replacement during rebuild;
+- complete actor and callback release during detach;
+- integration as the named `celestial_shell` scene layer;
+- camera, rendering, presence-control, and scene-cleanup integration.
+
+The M7 roadmap gate is satisfied:
+
+- the characterized shell appearance and material behavior are preserved;
+- rebuild and detach do not duplicate actors or camera callbacks;
+- global shell-presence controls use the shell object state;
+- the canonical interactive example and full test suite remain operational;
+- the legacy duplicate implementation has been removed from
+  `CelestialScene`.
+
 The repository does not yet automatically execute the canonical interactive
 example or verify Earth orientation.
 
@@ -278,7 +303,7 @@ example or verify Earth orientation.
 
 1. Compact, understandable spherical geometry.
 2. Reusable `SphericalFrame`.
-3. Appropriate `Scene → Layer → SceneObject` direction.
+3. Working `Scene → Layer → SceneObject` lifecycle for grids and the shell.
 4. Individually addressable grid curves.
 5. First-class annotations through the object model.
 6. Managed controls with layout, synchronization, and render batching.
@@ -288,22 +313,22 @@ example or verify Earth orientation.
 
 ## 13. Liabilities
 
-1. Most scene elements bypass the graph.
+1. Earth and most local scene elements still bypass the graph.
 2. `CelestialScene` has too many responsibilities.
-3. Shell callback lifecycle remains embedded in `CelestialScene`.
-4. Rendering lifecycle responsibilities have not yet moved into a separate
+3. Rendering lifecycle responsibilities have not yet moved into a separate
    render context.
-5. Controls use fixed pixel footprints and object-specific panel classes.
-6. Restore-default behavior has no model-level definition.
-7. Pixel output is not regression-tested across platforms.
-8. Equatorial coordinates are diagrammatic, not time-aware.
+4. Controls use fixed pixel footprints and object-specific panel classes.
+5. Restore-default behavior has no model-level definition.
+6. Pixel output is not regression-tested across platforms.
+7. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
 
 Wenu3D currently owns diagrammatic geometry, PyVista rendering, fixed scene
 composition, first-class annotations, managed interactive controls, a
 reproducible camera, deterministic interactive/off-screen rendering,
-configurable image export, and explicit cleanup.
+configurable image export, explicit cleanup, and a lifecycle-managed celestial
+shell.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
