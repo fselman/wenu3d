@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.8
+**Version:** 0.9
 **Date:** 2026-07-31
-**Status:** Description of `feature/interactive-grid-controls` through M8
+**Status:** Description of `feature/interactive-grid-controls` through M9.1
 
 ## 1. Purpose
 
@@ -187,6 +187,25 @@ Earth orientation, tangent plane, observer, arrows, and celestial axis are
 also constructed directly by `CelestialScene`. Their styling contains several
 hard-coded values. Earth orientation divides by `cos(latitude)` and is
 singular at the geographic poles.
+
+The current composition is a single-observer display convention rather than
+an Earth-fixed multi-observer model. Its horizontal frame is always local
+`+x` East, `+y` North, and `+z` Zenith. Earth is rotated so that the selected
+site, including the texture's 180-degree longitude correction, lies beneath
+that fixed zenith; adding a second geographic observer is not yet modeled.
+
+The finite platform is centered at
+`(earth_radius + 0.012) * zenith`, parallel to the centered mathematical
+horizon but displaced from the celestial origin. Earth, the platform, four
+cardinal arrows, and the seven stick-figure actors belong to the raw
+`ActorScaleGroup`. The celestial axis is also a direct actor but is not a
+member of that scale group. Centered grid geometry remains at its configured
+sphere radius when the raw local actors are scaled.
+
+There is currently no first-class Earth object, observer model,
+observer-representation contract, local-cartoon layer, model-aware transform,
+or ideal-horizon object. M9.1 records these facts without changing runtime or
+visual behavior.
 
 ## 8. Styling
 
@@ -380,8 +399,15 @@ The M8 roadmap gate is satisfied:
 - the canonical interactive example and full 317-test suite remain
   operational.
 
+M9.1 characterization tests verify the existing Earth texture-orientation
+convention, fixed local frame, geographic-pole singularity, displaced tangent
+platform, raw local actor membership, ungrouped celestial axis, and
+independence of centered grid geometry from raw local-actor scaling. M9.1 adds
+no runtime implementation.
+
 The repository does not yet automatically execute the canonical interactive
-example or verify Earth orientation.
+example. M9.1 verifies Earth orientation analytically but does not introduce a
+pixel-based texture-orientation regression test.
 
 ## 13. Strengths
 
