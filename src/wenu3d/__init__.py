@@ -27,6 +27,12 @@ from .illustration import IllustrationLayer
 from .layer import Layer
 from .markers import Marker, MarkerShape, MarkerStyle
 from .marker_object import MarkerObject
+from .observer import (
+    ObserverComposition,
+    ObserverRepresentation,
+    StickFigureRepresentation,
+)
+from .observer_model import Observer
 from .segment_object import SegmentObject
 from .segments import LineSegment, SegmentStyle, SightLine
 from .surfaces import PlaneSurface, SurfaceStyle
@@ -68,6 +74,10 @@ __all__ = [
     "MarkerObject",
     "MarkerShape",
     "MarkerStyle",
+    "Observer",
+    "ObserverComposition",
+    "ObserverRepresentation",
+    "StickFigureRepresentation",
     "LineSegment",
     "SegmentObject",
     "SegmentStyle",

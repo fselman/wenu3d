@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.10
+**Version:** 0.11
 **Date:** 2026-07-31
-**Status:** Description of `feature/interactive-grid-controls` through M9.2
+**Status:** Description of `feature/interactive-grid-controls` through M9.3
 
 ## 1. Purpose
 
@@ -41,7 +41,8 @@ that integration does not yet exist.
 | `controls.py` | Managed grid, annotation, and global controls |
 | `shell.py` | Celestial-shell mesh, material, presence, and callback lifecycle |
 | `earth.py` | Earth mesh loading and orientation |
-| `observer.py` | Tangent plane and observer figure |
+| `observer_model.py` | Renderer-neutral semantic observer record |
+| `observer.py` | Observer representations, composition, and legacy helpers |
 | `local_group.py` | Scaling a raw group of actors |
 | `style.py` | Flat scene styling |
 | `scene.py` | Scene composition, camera, rendering, grids, and controls |
@@ -132,6 +133,13 @@ axis are still created directly by `CelestialScene`.
 `ActorScaleGroup` is consequently a second actor-management mechanism outside
 the graph.
 
+M9.3 adds an `ObserverComposition` layer outside the canonical scene path. It
+associates one semantic `Observer` with one replaceable
+`ObserverRepresentation` and may contain ordinary context children through the
+existing layer API. Replacing an attached representation detaches its actors,
+retains the other children, rebuilds safely, and preserves inherited layer
+visibility.
+
 ## 5. Grid system
 
 Each meridian or parallel is a `GridCurveObject`. It stores a frame, angle,
@@ -217,9 +225,23 @@ member of that scale group. Centered grid geometry remains at its configured
 sphere radius when the raw local actors are scaled.
 
 There is currently no first-class Earth object, observer model,
-observer-representation contract, local-cartoon layer, model-aware transform,
-or ideal-horizon object. M9.1 records these facts without changing runtime or
-visual behavior.
+local-cartoon layer, model-aware transform, or ideal-horizon object in the
+canonical scene. M9.3 supplies the observer model and representation contract,
+but scene migration remains deferred to M9.4.
+
+`Observer` is renderer-neutral and owns a stable identity, an immutable finite
+position, a validated local `SphericalFrame`, and optional geographic metadata.
+`Observer.at_geographic_site()` constructs consistent position and ENU frame
+state from M9.2 geometry. Explicit observers may instead occupy any finite
+cartoon position, including the celestial origin.
+
+`ObserverRepresentation` is the drawable interface for representation-owned
+semantic anchors. `StickFigureRepresentation` preserves the existing six tube
+actors and one head actor and exposes feet, left foot, right foot, hips,
+shoulders, neck, head, and eye anchors. For the current featureless spherical
+head, eye and head use the same center. `add_observer()` remains as a backward-
+compatible wrapper and now builds through this representation without changing
+the canonical appearance.
 
 ## 8. Styling
 
@@ -425,6 +447,13 @@ antipodal positions and zeniths, frame orthonormality and handedness, radius
 handling, and invalid coordinates. M9.2 is additive geometry and does not
 integrate the new frame with rendering or scene composition.
 
+M9.3 tests verify explicit and geographic observers, immutable positions,
+geographic position/frame consistency, representation anchors, preserved
+seven-actor stick-figure geometry, representation lifecycle, legacy-wrapper
+compatibility, composition association, retained context, and safe attached
+representation replacement. The canonical scene continues to use the legacy
+wrapper, so M9.3 changes architecture without migrating scene ownership.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -444,6 +473,7 @@ pixel-based texture-orientation regression test.
 11. Reusable primitive renderers with uniform lifecycle behavior.
 12. Mixed scientific explanations grouped by `IllustrationLayer`.
 13. Renderer-neutral spherical Earth-fixed positions and local ENU frames.
+14. Semantic observers with replaceable lifecycle-managed representations.
 
 ## 14. Liabilities
 
@@ -465,7 +495,10 @@ configurable image export, explicit cleanup, and a lifecycle-managed celestial
 shell. It also owns renderer-neutral finite marker, segment, sight-line,
 sampled-curve, spherical-arc, and rectangular-plane records; their PyVista
 scene objects; mixed illustration layers; and spherical Earth-fixed geographic
-positions and local ENU frames.
+positions and local ENU frames. It also owns a renderer-neutral observer model,
+semantic representation anchors, the preserved stick-figure representation,
+and an observer composition layer that is not yet integrated into the
+canonical scene.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A

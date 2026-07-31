@@ -179,9 +179,9 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
 
 def test_current_stick_figure_builds_seven_raw_actors() -> None:
     plotter = Mock()
-    tube_actors = [object() for _ in range(6)]
+    tube_actors = [Mock() for _ in range(6)]
     head_mesh = object()
-    head_actor = object()
+    head_actor = Mock()
     plotter.add_mesh.return_value = head_actor
 
     with (
