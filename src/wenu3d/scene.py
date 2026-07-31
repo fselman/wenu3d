@@ -214,6 +214,7 @@ class CelestialScene:
             observer=self.observer,
             representation=self.observer_representation,
         )
+        self.ideal_horizon = self.observer_composition.ideal_horizon
 
         self.local_cartoon = LocalCartoonLayer(
             name="local_cartoon",

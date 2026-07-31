@@ -5,6 +5,7 @@ import pytest
 
 from wenu3d.frames import SphericalFrame, horizontal_frame
 from wenu3d.geography import geographic_position, local_enu_frame
+from wenu3d.horizons import IdealHorizon
 from wenu3d.observer import (
     Observer,
     ObserverComposition,
@@ -243,6 +244,7 @@ def test_observer_composition_associates_representation_and_context() -> None:
 
     assert composition.observer is observer
     assert composition.representation is representation
+    assert composition.ideal_horizon.observer is observer
     assert composition.objects == [representation, context]
     np.testing.assert_allclose(composition.anchor("feet"), observer.position)
 
@@ -301,6 +303,31 @@ def test_composition_rejects_representation_for_another_observer() -> None:
             name="observer.composition",
             observer=observer,
             representation=representation,
+        )
+
+
+def test_composition_validates_explicit_ideal_horizon() -> None:
+    observer = explicit_observer("first")
+    other = explicit_observer("other")
+    representation = DummyRepresentation(
+        name="observer.first",
+        observer=observer,
+    )
+
+    with pytest.raises(ValueError, match="composition observer"):
+        ObserverComposition(
+            name="observer.composition",
+            observer=observer,
+            representation=representation,
+            ideal_horizon=IdealHorizon(other),
+        )
+
+    with pytest.raises(TypeError, match="IdealHorizon"):
+        ObserverComposition(
+            name="observer.composition",
+            observer=observer,
+            representation=representation,
+            ideal_horizon=object(),
         )
 
 

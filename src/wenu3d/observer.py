@@ -7,6 +7,7 @@ import pyvista as pv
 
 from .frames import SphericalFrame
 from .geometry import unit
+from .horizons import IdealHorizon
 from .layer import Layer
 from .observer_model import Observer
 from .rendering import add_tube
@@ -134,6 +135,7 @@ class ObserverComposition(Layer):
         name: str,
         observer: Observer,
         representation: ObserverRepresentation,
+        ideal_horizon: IdealHorizon | None = None,
         visible: bool = True,
         opacity: float = 1.0,
     ) -> None:
@@ -143,6 +145,15 @@ class ObserverComposition(Layer):
         super().__init__(name=name, visible=visible, opacity=opacity)
         self.observer = observer
         self.representation = representation
+        if ideal_horizon is None:
+            ideal_horizon = IdealHorizon(observer)
+        if not isinstance(ideal_horizon, IdealHorizon):
+            raise TypeError("ideal_horizon must be an IdealHorizon.")
+        if ideal_horizon.observer is not observer:
+            raise ValueError(
+                "Ideal horizon must reference the composition observer."
+            )
+        self.ideal_horizon = ideal_horizon
         self.add(representation)
 
     @staticmethod

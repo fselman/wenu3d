@@ -24,6 +24,7 @@ from .curves import (
 from .curve_object import CurveObject
 from .earth import EarthObject
 from .grid import GridStyle, GridCurveObject, GridLayer
+from .horizons import IdealHorizon
 from .illustration import IllustrationLayer
 from .layer import Layer
 from .local_cartoon import LocalCartoonLayer
@@ -73,6 +74,7 @@ __all__ = [
     "GridStyle",
     "GridCurveObject",
     "GridLayer",
+    "IdealHorizon",
     "IllustrationLayer",
     "Layer",
     "LocalCartoonLayer",

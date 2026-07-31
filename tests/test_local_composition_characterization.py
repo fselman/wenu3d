@@ -169,6 +169,10 @@ def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
     )
     assert scene.observer_representation.observer is scene.observer
     assert scene.observer_representation.height == pytest.approx(0.23)
+    assert scene.ideal_horizon is scene.observer_composition.ideal_horizon
+    np.testing.assert_allclose(scene.ideal_horizon.origin, [0.0, 0.0, 0.0])
+    np.testing.assert_allclose(scene.ideal_horizon.normal, zenith)
+    assert not np.allclose(scene.ideal_horizon.origin, scene.platform.surface.center)
 
     assert scene.plotter.add_mesh.call_args_list == [
         call(

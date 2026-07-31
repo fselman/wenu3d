@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.14
+**Version:** 0.15
 **Date:** 2026-07-31
-**Status:** Description through M9.4.3 on `feature/interactive-grid-controls`
+**Status:** Description through M9.5.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -37,6 +37,7 @@ that integration does not yet exist.
 | `curve_object.py` | Lifecycle-managed sampled-curve rendering |
 | `surfaces.py` | Finite plane records, frames, and styles |
 | `surface_object.py` | Lifecycle-managed finite-surface rendering |
+| `horizons.py` | Observer-specific ideal-horizon geometry |
 | `illustration.py` | Mixed scientific-illustration layer |
 | `grid.py` | Grid styles, curves, and layers |
 | `annotations.py` | Annotation records, objects, styles, and layers |
@@ -254,6 +255,19 @@ stick figure is the replaceable `StickFigureRepresentation`, and the complete
 ordered actor collection is registered with the temporary scale group once.
 The scene does not yet have a model-aware local transform or ideal-horizon
 object. The celestial axis remains the only direct actor created by the scene.
+
+Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
+passes through the celestial origin and is perpendicular to the observer's
+zenith, independent of the observer's finite cartoon position. It exposes its
+East/North basis, signed-distance and orthogonal-projection queries, and may
+produce a finite `PlaneSurface` for display. Such a display surface is hidden
+by default and is not added to the canonical graph, so ideal-horizon geometry
+does not enter `ActorScaleGroup` or alter the accepted illustration.
+
+The ideal horizon and local platform are intentionally distinct: the horizon
+is centered celestial geometry, while the current platform remains displaced
+to `(earth_radius + 0.012) * zenith` in the finite local cartoon. They are
+parallel in the canonical composition but have different centers.
 
 `Observer` is renderer-neutral and owns a stable identity, an immutable finite
 position, a validated local `SphericalFrame`, and optional geographic metadata.
@@ -499,6 +513,13 @@ representation, preserved actor order, and one complete registration with the
 temporary local scale group. The legacy `add_observer()` wrapper remains for
 backward compatibility, but the canonical scene no longer uses it.
 
+M9.5.1 tests verify ideal-horizon origin and observer-frame orientation,
+arbitrary tilted ENU frames, handedness validation, signed distance,
+orthogonal projection, invalid query geometry, hidden-by-default finite display
+surfaces, explicit surface style and visibility, composition association, and
+canonical separation from the displaced local platform. No ideal-horizon
+actor is added by default.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -530,6 +551,8 @@ pixel-based texture-orientation regression test.
 5. Restore-default behavior has no model-level definition.
 6. Pixel output is not regression-tested across platforms.
 7. Equatorial coordinates are diagrammatic, not time-aware.
+8. Local platforms and their interchangeable decorations are not yet modeled
+   as observer-composition context.
 
 ## 15. Current boundary
 
@@ -543,7 +566,8 @@ scene objects; mixed illustration layers; and spherical Earth-fixed geographic
 positions and local ENU frames. It also owns a renderer-neutral observer model,
 semantic representation anchors, the preserved stick-figure representation,
 and a local-cartoon layer integrating one shared Earth with named observer
-compositions in the canonical scene.
+compositions in the canonical scene. Each composition has renderer-neutral
+ideal-horizon geometry independent of local-cartoon scale and placement.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
