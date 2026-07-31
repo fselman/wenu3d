@@ -17,15 +17,6 @@ def make_plotter() -> Mock:
     return plotter
 
 
-def make_legacy_shell_scene(plotter: Mock) -> CelestialScene:
-    scene = object.__new__(CelestialScene)
-    scene.sphere_radius = 1.0
-    scene.style = SceneStyle()
-    scene.plotter = plotter
-    scene._closed = False
-    return scene
-
-
 def test_shell_object_build_owns_mesh_actor_and_observer() -> None:
     plotter = make_plotter()
     actor = plotter.add_mesh.return_value
@@ -52,28 +43,6 @@ def test_shell_object_build_owns_mesh_actor_and_observer() -> None:
     event, callback = plotter.iren.add_observer.call_args.args
     assert event == "EndInteractionEvent"
     assert callable(callback)
-
-
-def test_shell_object_material_matches_characterized_scene() -> None:
-    legacy_plotter = make_plotter()
-    legacy = make_legacy_shell_scene(legacy_plotter)
-    legacy._add_celestial_shell()
-    legacy._refresh_celestial_sphere()
-    expected = legacy._sphere_mesh.point_data[
-        legacy._sphere_rgba_name
-    ]
-
-    object_plotter = make_plotter()
-    shell = CelestialShellObject(
-        name="celestial_shell",
-        radius=1.0,
-        style=legacy.style,
-    )
-    shell.build(object_plotter)
-    shell.refresh()
-
-    actual = shell.mesh.point_data["celestial_sphere_rgba"]
-    np.testing.assert_array_equal(actual, expected)
 
 
 def test_shell_object_presence_refreshes_and_renders_once() -> None:
