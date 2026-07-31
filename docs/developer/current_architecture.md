@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.31
+**Version:** 0.32
 **Date:** 2026-07-31
-**Status:** Description through M10.1 on `feature/interactive-grid-controls`
+**Status:** Description through M10.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -24,6 +24,7 @@ that integration does not yet exist.
 | `geography.py` | Spherical Earth-fixed positions and local ENU frames |
 | `curves.py` | Sampled Cartesian curves, styles, meridians, and parallels |
 | `arcs.py` | Renderer-neutral partial great-circle and small-circle geometry |
+| `coordinates.py` | Centered coordinate-illustration geometry |
 | `camera.py` | Validated, renderer-neutral camera state |
 | `rendering.py` | Low-level PyVista tubes and arrows |
 | `scene_object.py` | Base drawable object and actor state |
@@ -484,6 +485,17 @@ Coordinate constructions will therefore consume `direction`, while explicit
 sight-line or marker rendering may consume `display_position` or the derived
 marker. No target is added to the canonical scene in this checkpoint.
 
+M10.2 adds `HorizontalCoordinateGeometry`. It consumes a `CelestialTarget`'s
+unit direction and an explicit `SphericalFrame`, then derives altitude,
+North-through-East azimuth, and the vertical-circle foot on the ideal horizon.
+Its altitude arc runs from that foot to the target along a centered vertical
+great circle; its azimuth arc runs on the centered ideal horizon from North to
+the foot. Both use the target's shell radius and configurable sampling.
+Zero-length altitude or azimuth arcs are represented by `None` instead of an
+invalid curve, and Zenith/Nadir targets are rejected because their azimuth and
+vertical circle are undefined. No finite observer position participates in
+these calculations, and no geometry is added to the canonical scene.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -726,6 +738,11 @@ check, while the automated M9 batch test is deliberately texture-independent.
 M10.1 tests verify direction normalization, derived shell position, immutable
 radius replacement, marker derivation with shared style and visibility, and
 validation of target identity, direction, radius, style, and visibility.
+
+M10.2 tests verify the North-through-East convention, vertical-circle foot,
+positive and negative altitude-arc direction, altitude and azimuth endpoints,
+target-direction dependence, centered shell radius, degenerate zero spans,
+undefined polar azimuth, and target, frame, and sampling validation.
 
 ## 13. Strengths
 

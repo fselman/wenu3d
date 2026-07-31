@@ -12,6 +12,7 @@ from .controls import (
     GlobalControlPanel,
     PanelPlacement,
 )
+from .coordinates import HorizontalCoordinateGeometry
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .geography import earth_fixed_frame, geographic_position, local_enu_frame
 from .curves import (
@@ -67,6 +68,7 @@ __all__ = [
     "AnnotationControlPanel",
     "CameraState",
     "ControlManager",
+    "HorizontalCoordinateGeometry",
     "GlobalControlPanel",
     "PanelPlacement",
     "SphericalFrame",
