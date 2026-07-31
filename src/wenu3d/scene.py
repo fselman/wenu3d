@@ -21,7 +21,6 @@ from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
 from .layer import Layer
 from .local_cartoon import LocalCartoonLayer
-from .local_group import ActorScaleGroup
 from .observer import ObserverComposition, StickFigureRepresentation
 from .observer_model import Observer
 from .platforms import CardinalDirectionsDecoration, LocalPlatform
@@ -31,6 +30,7 @@ from .shell import CelestialShellObject
 from .style import SceneStyle
 from .surface_object import SurfaceObject
 from .surfaces import PlaneSurface, SurfaceStyle
+from .transforms import LocalCartoonTransform
 from .vector_object import VectorObject
 from .vectors import VectorArrow, VectorStyle
 
@@ -119,7 +119,6 @@ class CelestialScene:
         self.plotter.set_background(self.style.background)
 
         self.graph = SceneGraph()
-        self.local_group = ActorScaleGroup()
         self._local_scale = 1.0
         self._title_actor: object | None = None
         self._closed = False
@@ -238,7 +237,6 @@ class CelestialScene:
         )
         self.local_cartoon.add_observer(self.observer_composition)
         self.add(self.local_cartoon)
-        self.local_group.extend(self.local_cartoon.actors)
 
     def _add_axis(self) -> None:
         ncp = self.equatorial.pole
@@ -323,8 +321,12 @@ class CelestialScene:
 
     def _set_local_scale(self, value: float) -> None:
         self._local_scale = float(value)
-        self.local_group.set_scale(self._local_scale)
-        self.plotter.render()
+        self.local_cartoon.set_transform(
+            LocalCartoonTransform(
+                translation=self.local_cartoon.transform.translation,
+                scale=self._local_scale,
+            )
+        )
 
     def _set_sphere_presence(self, value: float) -> None:
         self.shell.set_presence(value)

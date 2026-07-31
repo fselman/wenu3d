@@ -66,14 +66,17 @@ class LocalCartoonLayer(Layer):
     def get_observer(self, name: str) -> ObserverComposition:
         return self._observer_compositions[name]
 
-    def set_transform(self, transform: LocalCartoonTransform) -> None:
+    def set_transform(
+        self,
+        transform: LocalCartoonTransform,
+        *,
+        render: bool = True,
+    ) -> None:
         if not isinstance(transform, LocalCartoonTransform):
             raise TypeError("transform must be a LocalCartoonTransform.")
-        if self.attached_plotter is not None and not self._is_identity(transform):
-            raise RuntimeError(
-                "Non-identity actor transforms are not connected yet."
-            )
         self.transform = transform
+        self._apply_actor_transform()
+        self._request_render(render)
 
     def transform_points(self, points):
         return self.transform.apply_points(points)
@@ -87,12 +90,10 @@ class LocalCartoonLayer(Layer):
         return self.transform.apply_points(composition.anchor(anchor))
 
     def build(self, plotter) -> None:
-        if not self._is_identity(self.transform):
-            raise RuntimeError(
-                "Non-identity actor transforms are not connected yet."
-            )
         super().build(plotter)
+        self._apply_actor_transform()
 
-    @staticmethod
-    def _is_identity(transform: LocalCartoonTransform) -> bool:
-        return transform == LocalCartoonTransform.identity()
+    def _apply_actor_transform(self) -> None:
+        matrix = self.transform.matrix
+        for actor in self.actors:
+            actor.user_matrix = matrix

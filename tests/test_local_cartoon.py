@@ -153,22 +153,65 @@ def test_local_cartoon_validates_transform() -> None:
         layer.set_transform(object())
 
 
-def test_attached_layer_rejects_unrendered_non_identity_transform() -> None:
-    layer = LocalCartoonLayer(name="local", earth=make_earth())
-    layer._plotter = Mock()
-
-    with pytest.raises(RuntimeError, match="actor transforms"):
-        layer.set_transform(LocalCartoonTransform(scale=0.5))
-
-    assert layer.transform == LocalCartoonTransform.identity()
-
-
-def test_non_identity_layer_cannot_attach_before_render_path_exists() -> None:
+def test_non_identity_transform_is_applied_to_every_built_actor() -> None:
+    earth_actor = Mock()
+    observer_actor = Mock()
     layer = LocalCartoonLayer(
         name="local",
         earth=make_earth(),
-        transform=LocalCartoonTransform(scale=0.5),
+        transform=LocalCartoonTransform(
+            translation=(1.0, 2.0, 3.0),
+            scale=0.5,
+        ),
+    )
+    composition = make_composition("observer")
+    layer.add_observer(composition)
+    layer.earth.build = Mock(
+        side_effect=lambda plotter: layer.earth.actors.append(earth_actor)
+    )
+    composition.build = Mock(
+        side_effect=lambda plotter: composition.actors.append(observer_actor)
     )
 
-    with pytest.raises(RuntimeError, match="actor transforms"):
-        layer.build(Mock())
+    layer.build(Mock())
+
+    np.testing.assert_allclose(earth_actor.user_matrix, layer.transform.matrix)
+    np.testing.assert_allclose(observer_actor.user_matrix, layer.transform.matrix)
+
+
+def test_attached_transform_update_changes_model_and_actor_together() -> None:
+    actor = Mock()
+    plotter = Mock()
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    layer.earth.build = Mock(
+        side_effect=lambda current_plotter: layer.earth.actors.append(actor)
+    )
+    layer.build(plotter)
+    plotter.render.reset_mock()
+    transform = LocalCartoonTransform(
+        translation=(0.0, 1.0, 0.0),
+        scale=0.25,
+    )
+
+    layer.set_transform(transform)
+
+    assert layer.transform is transform
+    np.testing.assert_allclose(actor.user_matrix, transform.matrix)
+    plotter.render.assert_called_once_with()
+
+
+def test_attached_transform_update_can_defer_render() -> None:
+    actor = Mock()
+    plotter = Mock()
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    layer.earth.build = Mock(
+        side_effect=lambda current_plotter: layer.earth.actors.append(actor)
+    )
+    layer.build(plotter)
+    plotter.render.reset_mock()
+    transform = LocalCartoonTransform(scale=0.75)
+
+    layer.set_transform(transform, render=False)
+
+    np.testing.assert_allclose(actor.user_matrix, transform.matrix)
+    plotter.render.assert_not_called()

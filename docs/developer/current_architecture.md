@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.21
+**Version:** 0.22
 **Date:** 2026-07-31
-**Status:** Description through M9.6.2 on `feature/interactive-grid-controls`
+**Status:** Description through M9.6.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -49,7 +49,6 @@ that integration does not yet exist.
 | `observer_model.py` | Renderer-neutral semantic observer record |
 | `observer.py` | Observer representations, composition, and legacy helpers |
 | `local_cartoon.py` | Shared Earth and finite observer-composition layer |
-| `local_group.py` | Scaling a raw group of actors |
 | `style.py` | Flat scene styling |
 | `scene.py` | Scene composition, camera, rendering, grids, and controls |
 
@@ -136,8 +135,6 @@ iteration and length, and provides actor-safe `remove()` and `clear()`.
 The grid, celestial shell, Earth, finite platform, cardinal vectors, observer
 composition, annotations, and M8 illustration primitives follow this object
 model. The celestial axis is still created directly by `CelestialScene`.
-`ActorScaleGroup` is consequently a second actor-management mechanism outside
-the graph.
 
 `ObserverComposition` associates one semantic `Observer` with one replaceable
 `ObserverRepresentation` and an ordered collection of validated context
@@ -247,9 +244,9 @@ reproduction of the Polynesian Voyaging Society's protected artwork. The
 directional convention follows the Society's educational description at
 `https://worldwidevoyage.hokulea.com/education-at-sea/polynesian-navigation/the-star-compass/`.
 
-Earth, platform, cardinal-vector, and observer actors are temporarily
-registered with `ActorScaleGroup` so the existing local-scale control remains
-unchanged until M9.6 replaces that parallel mechanism.
+Earth, platform, cardinal-vector, and observer actors share the transform owned
+by `LocalCartoonLayer`. The existing local-scale control now updates that
+model-aware transform rather than a separate raw-actor collection.
 
 The celestial axis is still constructed directly by `CelestialScene`. Some
 local styling remains hard-coded. The legacy
@@ -266,17 +263,16 @@ that fixed zenith; adding a second geographic observer is not yet modeled.
 The finite platform is centered at
 `(earth_radius + 0.012) * zenith`, parallel to the centered mathematical
 horizon but displaced from the celestial origin. Earth, the platform, four
-cardinal arrows, and the seven stick-figure actors belong to the raw
-`ActorScaleGroup`. The celestial axis is also a direct actor but is not a
-member of that scale group. Centered grid geometry remains at its configured
-sphere radius when the raw local actors are scaled.
+cardinal arrows, and the seven stick-figure actors belong to the local-cartoon
+layer. The celestial axis remains a separate direct actor. Centered grid
+geometry remains at its configured sphere radius when the local cartoon is
+scaled.
 
 The canonical `LocalCartoonLayer` now contains the shared Earth followed by one
 semantic observer composition. That composition contains the finite platform,
 four cardinal vectors, and replaceable `StickFigureRepresentation` in the
-established actor order. The complete flattened actor collection is registered
-with the temporary scale group once. The celestial axis remains the only
-direct actor created by the scene.
+established actor order. The celestial axis remains the only direct actor
+created by the scene.
 
 `LocalCartoonTransform` is the renderer-neutral mathematical contract for
 M9.6. It contains a finite translation and positive uniform scale and applies
@@ -286,11 +282,14 @@ matrix. `LocalCartoonLayer` owns one such transform and uses it for transformed
 point, observer-position, and named semantic-anchor queries. One transform is
 shared by Earth and every observer composition.
 
-M9.6.2 does not yet connect that state to actors. To prevent model/render
-disagreement, a non-identity layer may be queried only while unattached;
-attaching it or assigning a non-identity transform to an attached layer raises
-explicitly. The canonical layer remains at identity, and `ActorScaleGroup`
-remains its scale path until the next rendering checkpoint.
+M9.6.3 applies the transform's homogeneous matrix to every actor owned by the
+layer after a build and after each attached transform update. Rendered Earth
+and observer composition geometry therefore remains aligned with transformed
+position and anchor queries. Updates may defer rendering for batching. The
+local-scale control preserves the transform's translation while replacing its
+uniform scale. This model-aware path fully replaces and retires
+`ActorScaleGroup`; the canonical identity transform leaves accepted output
+unchanged.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -298,7 +297,8 @@ zenith, independent of the observer's finite cartoon position. It exposes its
 East/North basis, signed-distance and orthogonal-projection queries, and may
 produce a finite `PlaneSurface` for display. Such a display surface is hidden
 by default and is not added to the canonical graph, so ideal-horizon geometry
-does not enter `ActorScaleGroup` or alter the accepted illustration.
+does not enter the finite local-cartoon transform or alter the accepted
+illustration.
 
 The ideal horizon and local platform are intentionally distinct: the horizon
 is centered celestial geometry, while the current platform remains displaced
@@ -583,8 +583,12 @@ does not alter actors or canonical scene composition.
 
 M9.6.2 tests verify identity transform ownership, transformed points, observer
 positions and representation anchors, one shared transform across multiple
-observers, transform validation, canonical identity queries, and explicit
-rejection of unrendered non-identity transforms on attached layers.
+observers, transform validation, and canonical identity queries.
+
+M9.6.3 tests verify actor matrices after non-identity builds, synchronized
+model-and-actor updates on attached layers, deferred rendering, preservation
+of translation through the global scale control, exclusion of centered
+celestial geometry, and removal of the parallel raw-actor scale group.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a

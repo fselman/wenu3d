@@ -11,6 +11,7 @@ from wenu3d.observer import (
     add_observer,
 )
 from wenu3d.scene import CelestialScene, SceneGraph
+from wenu3d.transforms import LocalCartoonTransform
 
 
 def source_sphere_point(latitude_deg: float, longitude_deg: float) -> np.ndarray:
@@ -42,7 +43,6 @@ def make_local_scene() -> CelestialScene:
     scene.style = Mock(plane_color="#d8d2c4")
     scene.plotter = Mock()
     scene.graph = SceneGraph()
-    scene.local_group = Mock()
     return scene
 
 
@@ -229,8 +229,6 @@ def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
     assert scene.platform_decoration.vectors == scene.cardinal_vectors
     assert scene.platform_decoration.objects == list(scene.cardinal_vectors)
     assert scene.earth.attached_plotter is scene.plotter
-    scene.local_group.add.assert_not_called()
-    assert scene.local_group.extend.call_args_list == [call(local_cartoon.actors)]
     assert local_cartoon.actors[-7:] == observer_actors
     assert local_cartoon.transform.scale == 1.0
     np.testing.assert_allclose(
@@ -274,7 +272,7 @@ def test_current_stick_figure_builds_seven_raw_actors() -> None:
     assert actors == tube_actors + [head_actor]
 
 
-def test_current_celestial_axis_is_not_in_local_scale_group() -> None:
+def test_current_celestial_axis_remains_outside_local_cartoon() -> None:
     scene = make_local_scene()
 
     with patch("wenu3d.scene.add_tube") as add_tube:
@@ -284,20 +282,25 @@ def test_current_celestial_axis_is_not_in_local_scale_group() -> None:
     points = add_tube.call_args.args[1]
     np.testing.assert_allclose(points[0], -1.10 * scene.equatorial.pole)
     np.testing.assert_allclose(points[1], 1.10 * scene.equatorial.pole)
-    scene.local_group.add.assert_not_called()
-    scene.local_group.extend.assert_not_called()
+    assert len(scene.graph) == 0
 
 
 def test_current_local_scale_does_not_modify_centered_grid_model() -> None:
     scene = make_local_scene()
     scene._local_scale = 1.0
+    scene.local_cartoon = Mock()
+    scene.local_cartoon.transform = LocalCartoonTransform(
+        translation=(0.1, 0.2, 0.3),
+    )
     grid_before = scene.make_horizontal_grid(name="before")
 
     scene._set_local_scale(0.35)
     grid_after = scene.make_horizontal_grid(name="after")
 
-    scene.local_group.set_scale.assert_called_once_with(0.35)
-    scene.plotter.render.assert_called_once_with()
+    transform = scene.local_cartoon.set_transform.call_args.args[0]
+    assert transform.translation == (0.1, 0.2, 0.3)
+    assert transform.scale == 0.35
+    scene.plotter.render.assert_not_called()
     assert scene._local_scale == 0.35
     assert grid_before.radius == pytest.approx(0.992)
     assert grid_after.radius == pytest.approx(0.992)
