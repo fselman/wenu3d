@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.28
+**Version:** 0.29
 **Date:** 2026-07-31
-**Status:** Description through M9.8.1 on `feature/interactive-grid-controls`
+**Status:** Description through M9.8.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -260,6 +260,18 @@ rotation about Zenith. `EarthObject` owns and exposes this matrix, validates
 the relation between geographic latitude, display Zenith, North, and the
 rotation axis, and supports both poles. The canonical scene supplies its
 existing horizontal North, preserving texture placement and appearance.
+
+M9.8.2 adds `EarthObject.display_observer()` as the explicit bridge from a
+geographic observer's Earth-fixed semantic coordinates to the rendered
+Earth's display coordinates. It applies the same texture-corrected orientation
+used by the globe to the observer position and complete ENU frame, returns an
+explicit display observer, and requires the semantic observer radius to match
+the rendered Earth. A geographic observer and its antipode can therefore own
+independently positioned local platforms and oppositely oriented ideal
+horizons while sharing one rendered Earth and one local transform. Geographic
+metadata remains on the Earth-fixed observers rather than being incorrectly
+attached to their rotated display-coordinate counterparts. The canonical
+scene still creates only its accepted explicit observer composition.
 
 The finite platform is centered at
 `(earth_radius + 0.012) * zenith`, parallel to the centered mathematical
@@ -670,6 +682,12 @@ matrix, corrected-site and north-pole placement, orthonormal right-handed
 polar matrices, inclusive geographic-pole support, inconsistent-frame
 rejection, scene propagation of display North, and unchanged Earth actor
 lifecycle.
+
+M9.8.2 tests verify Earth-fixed-to-display observer conversion, alignment of
+the selected site with display Zenith and North, geographic and radius
+validation, antipodal display positions, independent finite platforms,
+centered oppositely oriented ideal horizons, one shared Earth and transform,
+and lifecycle construction of both platform and point-representation actors.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a

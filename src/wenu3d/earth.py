@@ -5,9 +5,14 @@ import numpy as np
 import pyvista as pv
 from pyvista import examples
 
-from .geography import local_enu_frame
+from .frames import SphericalFrame
+from .geography import geographic_position, local_enu_frame
 from .geometry import unit
+from .observer_model import Observer
 from .scene_object import SceneObject
+
+
+EARTH_TEXTURE_LONGITUDE_CORRECTION_DEG = 180.0
 
 
 def earth_orientation_matrix(
@@ -17,7 +22,9 @@ def earth_orientation_matrix(
     latitude_deg: float,
     longitude_deg: float,
     observer_north=None,
-    texture_longitude_correction_deg: float = 180.0,
+    texture_longitude_correction_deg: float = (
+        EARTH_TEXTURE_LONGITUDE_CORRECTION_DEG
+    ),
 ) -> np.ndarray:
     """Map the Earth-fixed source basis into the illustration display basis."""
     axis = unit(rotation_axis)
@@ -84,7 +91,9 @@ def orient_earth_to_observer(
     latitude_deg: float,
     longitude_deg: float,
     observer_north=None,
-    texture_longitude_correction_deg: float = 180.0,
+    texture_longitude_correction_deg: float = (
+        EARTH_TEXTURE_LONGITUDE_CORRECTION_DEG
+    ),
 ) -> pv.PolyData:
     result = mesh.copy(deep=True)
     transform = earth_orientation_matrix(
@@ -175,6 +184,37 @@ class EarthObject(SceneObject):
             observer_north=self.observer_north,
             latitude_deg=self.latitude_deg,
             longitude_deg=self.longitude_deg,
+        )
+
+    def display_observer(self, observer: Observer) -> Observer:
+        """Return a geographic observer expressed in the rendered frame."""
+        if not isinstance(observer, Observer):
+            raise TypeError("observer must be an Observer.")
+        if observer.latitude_deg is None or observer.longitude_deg is None:
+            raise ValueError("A displayed observer must be geographic.")
+        radius = float(np.linalg.norm(observer.position))
+        if not np.isclose(radius, self.radius, atol=1e-12):
+            raise ValueError("Observer radius must match the rendered Earth.")
+
+        longitude = (
+            observer.longitude_deg
+            + EARTH_TEXTURE_LONGITUDE_CORRECTION_DEG
+        )
+        source_frame = local_enu_frame(observer.latitude_deg, longitude)
+        matrix = self.orientation_matrix
+        return Observer(
+            name=observer.name,
+            position=matrix @ geographic_position(
+                observer.latitude_deg,
+                longitude,
+                radius=radius,
+            ),
+            frame=SphericalFrame(
+                name=f"{observer.name}.display_enu",
+                pole=matrix @ source_frame.pole,
+                zero=matrix @ source_frame.zero,
+                east=matrix @ source_frame.east,
+            ),
         )
 
     @property
