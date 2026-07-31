@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.0  
+**Version:** 1.1
 **Date:** 2026-07-30  
-**Status:** Fixed incremental migration path  
+**Status:** Revised post-M6 incremental migration path
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -54,8 +54,15 @@ does not import Wenu.
 | M5 | Reusable scalable controls |
 | M6 | Reproducible rendering and export |
 | M7 | Celestial shell as a scene object |
-| M8 | Local illustration as a layer |
-| M9 | Horizon A release candidate |
+| M8 | General scientific illustration primitives |
+| M9 | Observer, Earth, and horizon composition |
+| M10 | Coordinate and parallax illustrations |
+| M11 | Horizon A release candidate |
+
+M0 through M6 are completed history and remain unchanged by version 1.1. The
+post-M6 path is expanded because concrete illustration requirements now
+justify reusable finite markers, sight lines, partial spherical arcs, multiple
+observers, decorated horizon planes, and scale-comparison scenes.
 
 ## 4. M0 — Architectural baseline
 
@@ -262,34 +269,135 @@ improvements. Expose stable visibility and presence controls.
 
 A reusable shell governed by the same lifecycle as other objects.
 
-## 12. M8 — Local illustration layer
+## 12. M8 — General scientific illustration primitives
 
 ### Goal
 
-Bring Earth, plane, observer, arrows, and axes into the scene graph.
+Provide the smallest reusable object vocabulary required by concrete
+astronomical illustrations.
 
 ### Work
 
-1. Introduce the smallest useful explicit objects.
-2. Group them into a local layer with visibility and scale.
-3. Retire `ActorScaleGroup` once fully replaced.
-4. define or reject geographic-pole behavior.
-5. Preserve Earth axis, site, zenith, and texture relationships.
-6. Move hard-coded style only as each object is formalized.
+1. Add a finite-position marker object suitable for stars, poles, and named
+   points.
+2. Add line-segment and sight-line objects with explicit Cartesian endpoints.
+3. Add a general sampled-curve object with width, color, opacity, visibility,
+   and optional arrowheads.
+4. Add renderer-neutral partial great-circle and small-circle geometry,
+   including validated endpoints and sampling.
+5. Add a general plane or surface object needed by observer-relative horizon
+   illustrations.
+6. Add an illustration layer for grouping related primitives and annotations.
+7. Reuse the established `SceneObject` lifecycle; do not introduce
+   coordinate-specific renderers.
 
 ### Gate
 
-- local geometry tests pass;
-- group scale works through the layer;
-- Earth orientation is verified for La Ligua and reference sites;
-- all base elements appear in the graph;
+- marker, segment, curve, arc, and plane geometry tests pass;
+- all primitives build, hide, show, detach, and rebuild without actor
+  accumulation;
+- a large golden star is produced through marker style rather than a special
+  renderer;
+- thick partial arcs are produced through curve style;
 - interactive and batch renders succeed.
 
 ### Working product
 
-The full canonical illustration follows one object architecture.
+A reusable finite scientific-illustration vocabulary independent of any one
+coordinate system.
 
-## 13. M9 — Product hardening
+## 13. M9 — Observer, Earth, and horizon composition
+
+### Goal
+
+Bring local astronomical geometry into the scene graph and support more than
+one observer.
+
+### Work
+
+1. Make Earth an explicit scene object with preserved texture and axis
+   orientation.
+2. Make an observer an explicit object with a finite Cartesian position and
+   validated observer-relative frame.
+3. Support multiple observers, including observers on opposite sides of
+   Earth.
+4. Make the tangent horizon an observer-relative semi-opaque plane.
+5. Separate horizon geometry from interchangeable decorations.
+6. Provide North, East, South, and West lines and inscriptions.
+7. Provide a compass-rose decoration.
+8. Provide a Nainoa Thompson navigation decoration from validated vector
+   geometry or an explicit texture.
+9. Bring observer figures, direction arrows, planes, axes, and related
+   annotations into a local scene layer.
+10. Retire `ActorScaleGroup` once fully replaced.
+11. Define or reject geographic-pole behavior.
+12. Move hard-coded style only as each owning object is formalized.
+
+### Gate
+
+- observer position and local-frame tests pass;
+- Earth orientation is verified for La Ligua and reference sites;
+- two observers can coexist without special-case scene code;
+- horizon geometry follows its observer;
+- cardinal, compass-rose, and navigation decorations are interchangeable;
+- local visibility and scale work through the layer;
+- all local elements appear in the graph;
+- interactive and batch renders succeed.
+
+### Working product
+
+Earth, observers, and decorated local horizons follow the common object
+architecture.
+
+## 14. M10 — Coordinate and parallax illustrations
+
+### Goal
+
+Assemble the reusable objects into complete scientifically meaningful
+illustrations.
+
+### Work
+
+1. Add a finite star point on the celestial sphere with configurable marker
+   style.
+2. Add horizontal-coordinate composition helpers:
+   - altitude arc along the star's vertical circle from horizon to star;
+   - azimuth arc on the horizon from North to the vertical-circle foot;
+   - associated labels and optional arrowheads.
+3. Add equatorial-coordinate composition helpers:
+   - declination arc from the equator to the star along its hour circle;
+   - right-ascension arc along the equator from a scientifically defined
+     origin to the hour circle;
+   - associated labels and optional arrowheads.
+4. Keep diagrammatic equatorial longitude distinct from absolute right
+   ascension when time or sidereal orientation is absent.
+5. Add two finite sight lines from two observer positions to one common star
+   endpoint on the celestial sphere.
+6. Add paired large-Earth and small-Earth configurations. Hold the celestial
+   sphere and star fixed while scaling Earth, observer positions, horizon
+   planes, and observer separation together.
+7. Demonstrate how sight-line convergence becomes visually negligible when
+   the observer baseline is small compared with star distance.
+8. Preserve direct access to every marker, curve, line, plane, annotation, and
+   style used by the convenience compositions.
+
+### Gate
+
+- altitude, azimuth, declination, and right-ascension arc endpoints are
+  geometrically verified;
+- coordinate labels state the convention actually used;
+- both sight lines share the same finite star endpoint;
+- the Earth-to-sphere scale ratio is explicit and reproducible;
+- large-Earth and small-Earth illustrations export deterministically;
+- their visual comparison communicates the intended convergence limit;
+- interactive and batch renders succeed.
+
+### Working product
+
+A scientific-illustration toolkit that produces reusable coordinate, horizon,
+navigation, and finite-distance parallax diagrams.
+
+## 15. M11 — Product hardening
 
 ### Goal
 
@@ -301,7 +409,7 @@ Produce a standalone Horizon A release candidate.
 - organize styles where accumulated parameters justify it;
 - document transparency, far-side visibility, ordering, and occlusion;
 - complete quick-start, interactive, batch, annotation, control, coordinate,
-  and extension documentation;
+  observer, horizon, parallax, and extension documentation;
 - verify packaging, supported Python, errors, and absence of stale modules;
 - run the full gate in a clean environment.
 
@@ -314,7 +422,7 @@ All completion criteria in `target_architecture_horizonA.md` pass.
 A coherent standalone scientific-illustration product ready for a separately
 planned Wenu renderer adapter.
 
-## 14. Deferred Horizon B
+## 16. Deferred Horizon B
 
 Defer:
 
@@ -325,10 +433,14 @@ Defer:
 - renderer plugins inside Wenu;
 - complete transparency semantics for every possible Wenu layer.
 
+Horizon B may supply celestial objects as directions. It must preserve the
+distinction between those directional inputs and Horizon A finite positioned
+targets rather than silently reinterpreting finite illustrations.
+
 Record real adapter requirements during Horizon A, but do not redesign for
 hypothetical needs.
 
-## 15. Commit strategy
+## 17. Commit strategy
 
 A milestone may contain several small commits:
 
@@ -341,7 +453,7 @@ A milestone may contain several small commits:
 At each milestone record the commit SHA, checks executed, canonical output,
 known limitations, and next milestone.
 
-## 16. Change control
+## 18. Change control
 
 This path is authoritative for Horizon A. Departure requires repository
 evidence of a contradiction, duplication, broken dependency, simpler safe
