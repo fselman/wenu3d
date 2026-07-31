@@ -126,6 +126,49 @@ class StickFigureRepresentation(ObserverRepresentation):
         )
 
 
+class PointObserverRepresentation(ObserverRepresentation):
+    """A minimal spherical marker for one semantic observer position."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        observer: Observer,
+        radius: float,
+        color: str = "#d4af8a",
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        radius = float(radius)
+        if not np.isfinite(radius) or radius <= 0.0:
+            raise ValueError("Point radius must be finite and greater than zero.")
+        super().__init__(
+            name=name,
+            observer=observer,
+            visible=visible,
+            opacity=opacity,
+        )
+        self.radius = radius
+        self.color = str(color)
+
+    @property
+    def anchors(self) -> Mapping[str, np.ndarray]:
+        return {"position": self.observer.position.copy()}
+
+    def build(self, plotter: pv.Plotter) -> None:
+        self._prepare_build(plotter)
+        self.add_actor(
+            plotter.add_mesh(
+                pv.Sphere(
+                    radius=self.radius,
+                    center=self.observer.position,
+                ),
+                color=self.color,
+                smooth_shading=True,
+            )
+        )
+
+
 class ObserverComposition(Layer):
     """A semantic observer, its replaceable representation, and context."""
 

@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.25
+**Version:** 0.26
 **Date:** 2026-07-31
-**Status:** Description through M9.7.2 on `feature/interactive-grid-controls`
+**Status:** Description through M9.7.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -321,6 +321,17 @@ horizons and coexist under one shared Earth and local transform. The
 canonical scene does not add the demonstration pair, so accepted output is
 unchanged.
 
+M9.7.3 adds `PointObserverRepresentation`, a minimal one-actor spherical
+marker with a semantic `position` anchor. It provides a concrete replacement
+for the stick figure without changing the associated `Observer`, ideal
+horizon, or composition context. `LocalCartoonLayer` owns the safe attached
+replacement operation: it delegates model replacement to the composition,
+refreshes its flattened actor ownership, removes stale actor references,
+applies the current shared transform to the new representation, preserves
+inherited visibility, and renders once unless deferred. The canonical scene
+continues to select `StickFigureRepresentation`, so its appearance is
+unchanged.
+
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
 zenith, independent of the observer's finite cartoon position. It exposes its
@@ -633,6 +644,11 @@ without geographic metadata, opposite positions and ENU axes, distinct
 oriented ideal horizons, and two complete compositions sharing one Earth and
 one transformed local-cartoon layer.
 
+M9.7.3 tests verify point-representation anchors, one-actor rendering and
+radius validation, attached replacement with retained observer and horizon,
+stale-actor removal, shared-transform application, transformed anchor queries,
+and deferred rendering.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -666,9 +682,9 @@ pixel-based texture-orientation regression test.
 7. Equatorial coordinates are diagrammatic, not time-aware.
 8. Optional platform decorations are not yet selectable through canonical
    scene construction or interactive controls.
-9. Dynamically rebuilding an observer composition does not yet notify its
-   parent local-cartoon layer; representation replacement is completed in a
-   later M9.7 checkpoint.
+9. Directly rebuilding attached observer context below `LocalCartoonLayer`
+   does not yet refresh the parent's flattened actor cache; attached
+   representation replacement must use the layer-level operation.
 
 ## 15. Current boundary
 

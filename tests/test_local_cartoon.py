@@ -6,7 +6,11 @@ import pytest
 from wenu3d.earth import EarthObject
 from wenu3d.frames import horizontal_frame
 from wenu3d.local_cartoon import LocalCartoonLayer
-from wenu3d.observer import ObserverComposition, ObserverRepresentation
+from wenu3d.observer import (
+    ObserverComposition,
+    ObserverRepresentation,
+    PointObserverRepresentation,
+)
 from wenu3d.observer_model import Observer
 from wenu3d.transforms import LocalCartoonTransform
 
@@ -375,5 +379,78 @@ def test_dynamic_observer_addition_can_defer_render() -> None:
     composition.build = Mock()
 
     layer.add_observer(composition, render=False)
+
+    plotter.render.assert_not_called()
+
+
+def test_attached_representation_replacement_preserves_model_and_transform(
+    monkeypatch,
+) -> None:
+    earth_actor = Mock()
+    point_actor = Mock()
+    point_mesh = object()
+    plotter = Mock()
+    transform = LocalCartoonTransform(
+        translation=(1.0, 2.0, 3.0),
+        scale=0.5,
+    )
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=transform,
+    )
+    composition = make_composition("navigator")
+    observer = composition.observer
+    horizon = composition.ideal_horizon
+    layer.add_observer(composition)
+    layer.earth.build = Mock(
+        side_effect=lambda current_plotter: layer.earth.actors.append(
+            earth_actor
+        )
+    )
+    layer.build(plotter)
+    old_actor = composition.representation.actors[0]
+    plotter.add_mesh.return_value = point_actor
+    monkeypatch.setattr("wenu3d.observer.pv.Sphere", lambda **kwargs: point_mesh)
+    replacement = PointObserverRepresentation(
+        name="navigator.point",
+        observer=observer,
+        radius=0.01,
+    )
+    plotter.render.reset_mock()
+
+    layer.set_observer_representation("navigator", replacement)
+
+    assert composition.observer is observer
+    assert composition.ideal_horizon is horizon
+    assert composition.representation is replacement
+    assert layer.actors == [earth_actor, point_actor]
+    assert old_actor not in layer.actors
+    np.testing.assert_allclose(point_actor.user_matrix, transform.matrix)
+    np.testing.assert_allclose(
+        layer.observer_anchor("navigator", "position"),
+        transform.apply_points(observer.position),
+    )
+    plotter.render.assert_called_once_with()
+
+
+def test_representation_replacement_can_defer_render() -> None:
+    plotter = Mock()
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    composition = make_composition("navigator")
+    layer.add_observer(composition)
+    layer.earth.build = Mock()
+    layer.build(plotter)
+    replacement = DummyRepresentation(
+        name="navigator.replacement",
+        observer=composition.observer,
+    )
+    plotter.render.reset_mock()
+
+    layer.set_observer_representation(
+        "navigator",
+        replacement,
+        render=False,
+    )
 
     plotter.render.assert_not_called()

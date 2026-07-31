@@ -10,6 +10,7 @@ from wenu3d.observer import (
     Observer,
     ObserverComposition,
     ObserverRepresentation,
+    PointObserverRepresentation,
     StickFigureRepresentation,
     add_observer,
 )
@@ -391,6 +392,60 @@ def test_composition_validates_explicit_ideal_horizon() -> None:
             observer=observer,
             representation=representation,
             ideal_horizon=object(),
+        )
+
+
+def test_point_representation_exposes_observer_position_anchor() -> None:
+    observer = explicit_observer()
+    representation = PointObserverRepresentation(
+        name="observer.point",
+        observer=observer,
+        radius=0.01,
+    )
+
+    np.testing.assert_allclose(
+        representation.anchor("position"),
+        observer.position,
+    )
+    assert representation.anchors["position"] is not observer.position
+
+
+def test_point_representation_builds_one_spherical_actor() -> None:
+    observer = explicit_observer()
+    representation = PointObserverRepresentation(
+        name="observer.point",
+        observer=observer,
+        radius=0.01,
+        color="cyan",
+    )
+    plotter = Mock()
+    actor = plotter.add_mesh.return_value
+    mesh = object()
+
+    with patch("wenu3d.observer.pv.Sphere", return_value=mesh) as sphere:
+        representation.build(plotter)
+
+    sphere.assert_called_once()
+    assert sphere.call_args.kwargs["radius"] == 0.01
+    np.testing.assert_allclose(
+        sphere.call_args.kwargs["center"],
+        observer.position,
+    )
+    plotter.add_mesh.assert_called_once_with(
+        mesh,
+        color="cyan",
+        smooth_shading=True,
+    )
+    assert representation.actors == [actor]
+
+
+@pytest.mark.parametrize("radius", [0.0, -1.0, np.inf, np.nan])
+def test_point_representation_rejects_invalid_radius(radius: float) -> None:
+    with pytest.raises(ValueError, match="radius"):
+        PointObserverRepresentation(
+            name="observer.point",
+            observer=explicit_observer(),
+            radius=radius,
         )
 
 

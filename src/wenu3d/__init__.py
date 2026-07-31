@@ -33,6 +33,7 @@ from .marker_object import MarkerObject
 from .observer import (
     ObserverComposition,
     ObserverRepresentation,
+    PointObserverRepresentation,
     StickFigureRepresentation,
 )
 from .observer_model import Observer
@@ -94,6 +95,7 @@ __all__ = [
     "Observer",
     "ObserverComposition",
     "ObserverRepresentation",
+    "PointObserverRepresentation",
     "StickFigureRepresentation",
     "CardinalDirectionsDecoration",
     "CardinalLinesDecoration",

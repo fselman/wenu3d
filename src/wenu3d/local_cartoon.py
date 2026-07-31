@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from .earth import EarthObject
 from .layer import Layer
-from .observer import ObserverComposition
+from .observer import ObserverComposition, ObserverRepresentation
 from .scene_object import SceneObject
 from .transforms import LocalCartoonTransform
 
@@ -75,6 +75,25 @@ class LocalCartoonLayer(Layer):
 
     def get_observer(self, name: str) -> ObserverComposition:
         return self._observer_compositions[name]
+
+    def set_observer_representation(
+        self,
+        observer: str,
+        representation: ObserverRepresentation,
+        *,
+        render: bool = True,
+    ) -> None:
+        composition = self.get_observer(observer)
+        composition.set_representation(representation, render=False)
+        if self.attached_plotter is not None:
+            composition._set_ancestor_visible(self.effective_visible)
+            self.actors = [
+                actor
+                for obj in self.objects
+                for actor in obj.actors
+            ]
+            self._apply_actor_transform(composition.actors)
+            self._request_render(render)
 
     def set_transform(
         self,
