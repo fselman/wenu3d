@@ -19,6 +19,7 @@ from .curves import (
     Parallel,
     SampledCurve,
 )
+from .curve_object import CurveObject
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .layer import Layer
 from .markers import Marker, MarkerShape, MarkerStyle
@@ -44,6 +45,7 @@ __all__ = [
     "horizontal_frame",
     "equatorial_frame",
     "ArrowheadPlacement",
+    "CurveObject",
     "CurveStyle",
     "Meridian",
     "Parallel",
