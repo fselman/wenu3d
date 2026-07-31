@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.16
+**Version:** 0.17
 **Date:** 2026-07-31
-**Status:** Description through M9.5.2 on `feature/interactive-grid-controls`
+**Status:** Description through M9.5.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -38,6 +38,7 @@ that integration does not yet exist.
 | `surfaces.py` | Finite plane records, frames, and styles |
 | `surface_object.py` | Lifecycle-managed finite-surface rendering |
 | `horizons.py` | Observer-specific ideal-horizon geometry |
+| `platforms.py` | Finite local platforms and replaceable decorations |
 | `illustration.py` | Mixed scientific-illustration layer |
 | `grid.py` | Grid styles, curves, and layers |
 | `annotations.py` | Annotation records, objects, styles, and layers |
@@ -219,13 +220,16 @@ compositions by semantic observer name. Duplicate observer identities are
 rejected, and compositions are available through ordered iteration and named
 lookup. The canonical layer currently contains one observer composition.
 
-The finite platform is a general `PlaneSurface` rendered by `SurfaceObject`.
-It is the first context object of the canonical `ObserverComposition`. Its
-established center, East/North axes, dimensions, opacity, color, and edge
-treatment are preserved. Four following `VectorObject` context children render
-the cardinal directions through the existing solid PyVista-arrow path.
+The finite platform is a `LocalPlatform` composition containing a general
+`PlaneSurface` rendered by `SurfaceObject` and one interchangeable
+`PlatformDecoration`. It is the first context object of the canonical
+`ObserverComposition`. Its established center, East/North axes, dimensions,
+opacity, color, and edge treatment are preserved. The current
+`CardinalDirectionsDecoration` maps four `VectorObject` children to East,
+West, North, and South through the existing solid PyVista-arrow path.
 `VectorArrow` and `VectorStyle` are renderer-neutral general records rather
-than local-specific types.
+than local-specific types. Replacing or removing a decoration preserves the
+platform surface and uses the standard attached-layer lifecycle.
 
 Earth, platform, cardinal-vector, and observer actors are temporarily
 registered with `ActorScaleGroup` so the existing local-scale control remains
@@ -528,6 +532,11 @@ safe attached rebuild, retention across representation replacement, canonical
 ownership of the platform and cardinal vectors by the observer composition,
 unchanged flattened actor order, and one temporary scale-group registration.
 
+M9.5.3 tests verify the finite platform/decorations ownership boundary,
+semantic cardinal-direction ordering and lookup, component validation,
+attached decoration replacement and removal, canonical nesting, unchanged
+flattened actor order, and preserved platform/vector objects.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -559,8 +568,8 @@ pixel-based texture-orientation regression test.
 5. Restore-default behavior has no model-level definition.
 6. Pixel output is not regression-tested across platforms.
 7. Equatorial coordinates are diagrammatic, not time-aware.
-8. Cardinal arrows are composition context but are not yet formalized as an
-   interchangeable platform-decoration layer with inscriptions.
+8. Cardinal arrows are an interchangeable platform decoration, but cardinal
+   inscriptions, compass rose, and navigation decoration are not yet present.
 
 ## 15. Current boundary
 

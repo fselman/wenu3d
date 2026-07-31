@@ -24,6 +24,7 @@ from .local_cartoon import LocalCartoonLayer
 from .local_group import ActorScaleGroup
 from .observer import ObserverComposition, StickFigureRepresentation
 from .observer_model import Observer
+from .platforms import CardinalDirectionsDecoration, LocalPlatform
 from .rendering import add_tube
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
@@ -197,6 +198,20 @@ class CelestialScene:
             )
             for index, direction in enumerate(directions)
         )
+        self.platform_decoration = CardinalDirectionsDecoration(
+            name="local_cartoon.platform.cardinal_directions",
+            vectors=dict(
+                zip(
+                    CardinalDirectionsDecoration.required_directions,
+                    self.cardinal_vectors,
+                )
+            ),
+        )
+        self.local_platform = LocalPlatform(
+            name="local_cartoon.platform_context",
+            surface=self.platform,
+            decoration=self.platform_decoration,
+        )
 
         observer_base = plane_center - 0.05 * self.earth_radius * north
         self.observer = Observer(
@@ -213,7 +228,7 @@ class CelestialScene:
             name="local_cartoon.observer",
             observer=self.observer,
             representation=self.observer_representation,
-            context=(self.platform, *self.cardinal_vectors),
+            context=(self.local_platform,),
         )
         self.ideal_horizon = self.observer_composition.ideal_horizon
 

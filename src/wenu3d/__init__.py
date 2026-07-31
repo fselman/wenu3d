@@ -36,6 +36,11 @@ from .observer import (
     StickFigureRepresentation,
 )
 from .observer_model import Observer
+from .platforms import (
+    CardinalDirectionsDecoration,
+    LocalPlatform,
+    PlatformDecoration,
+)
 from .segment_object import SegmentObject
 from .segments import LineSegment, SegmentStyle, SightLine
 from .surfaces import PlaneSurface, SurfaceStyle
@@ -86,6 +91,9 @@ __all__ = [
     "ObserverComposition",
     "ObserverRepresentation",
     "StickFigureRepresentation",
+    "CardinalDirectionsDecoration",
+    "LocalPlatform",
+    "PlatformDecoration",
     "LineSegment",
     "SegmentObject",
     "SegmentStyle",

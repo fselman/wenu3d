@@ -212,18 +212,22 @@ def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
         is scene.observer_composition
     )
     assert (
-        scene.observer_composition.get("local_cartoon.platform")
+        scene.local_platform.get("local_cartoon.platform")
         is scene.platform
     )
-    assert scene.observer_composition.context_objects == (
-        scene.platform,
-        *scene.cardinal_vectors,
-    )
+    assert scene.observer_composition.context_objects == (scene.local_platform,)
     assert scene.observer_composition.objects == [
-        scene.platform,
-        *scene.cardinal_vectors,
+        scene.local_platform,
         scene.observer_representation,
     ]
+    assert scene.local_platform.surface is scene.platform
+    assert scene.local_platform.decoration is scene.platform_decoration
+    assert scene.local_platform.objects == [
+        scene.platform,
+        scene.platform_decoration,
+    ]
+    assert scene.platform_decoration.vectors == scene.cardinal_vectors
+    assert scene.platform_decoration.objects == list(scene.cardinal_vectors)
     assert scene.earth.attached_plotter is scene.plotter
     scene.local_group.add.assert_not_called()
     assert scene.local_group.extend.call_args_list == [call(local_cartoon.actors)]
