@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.7
+**Version:** 0.8
 **Date:** 2026-07-31
-**Status:** Description of `feature/interactive-grid-controls` through M7
+**Status:** Description of `feature/interactive-grid-controls` through M8
 
 ## 1. Purpose
 
@@ -21,11 +21,20 @@ that integration does not yet exist.
 |---|---|
 | `geometry.py` | Vector normalization |
 | `frames.py` | Orthonormal spherical frames |
-| `curves.py` | Sampled meridians and parallels |
+| `curves.py` | Sampled Cartesian curves, styles, meridians, and parallels |
+| `arcs.py` | Renderer-neutral partial great-circle and small-circle geometry |
 | `camera.py` | Validated, renderer-neutral camera state |
 | `rendering.py` | Low-level PyVista tubes and arrows |
 | `scene_object.py` | Base drawable object and actor state |
 | `layer.py` | Composite collection of scene objects |
+| `markers.py` | Finite marker records and styles |
+| `marker_object.py` | Lifecycle-managed marker rendering |
+| `segments.py` | Finite segment and sight-line records and styles |
+| `segment_object.py` | Lifecycle-managed segment rendering |
+| `curve_object.py` | Lifecycle-managed sampled-curve rendering |
+| `surfaces.py` | Finite plane records, frames, and styles |
+| `surface_object.py` | Lifecycle-managed finite-surface rendering |
+| `illustration.py` | Mixed scientific-illustration layer |
 | `grid.py` | Grid styles, curves, and layers |
 | `annotations.py` | Annotation records, objects, styles, and layers |
 | `controls.py` | Managed grid, annotation, and global controls |
@@ -62,8 +71,19 @@ equatorial geometry but does not define absolute right ascension: observation
 time, sidereal time, and epoch are absent.
 
 `Meridian` and `Parallel` are immutable, renderer-neutral sampled geometry
-objects. This is the cleanest existing separation between scientific geometry
-and PyVista.
+objects. `SampledCurve` generalizes ordered finite Cartesian samples with
+renderer-neutral color, width, opacity, visibility, and arrowhead style.
+
+`SphericalArc` samples a validated partial great circle or constant-latitude
+small circle in an explicit `SphericalFrame`. It preserves increasing or
+decreasing parameter direction and converts directly to `SampledCurve`, so
+partial coordinate arcs use the general curve renderer rather than a
+coordinate-specific rendering path.
+
+Finite marker, segment, sight-line, and rectangular-plane records validate
+their Cartesian geometry independently of PyVista. A `PlaneSurface` stores an
+explicit center, normal, orthogonal in-plane axes, dimensions, style, and
+counterclockwise corners.
 
 ## 4. Object model
 
@@ -92,8 +112,9 @@ ancestor layer remains hidden.
 protection and lookup. It preserves insertion order, supports ordered
 iteration and length, and provides actor-safe `remove()` and `clear()`.
 
-The grid and celestial shell follow this object model. Earth, plane, observer,
-arrows, and axis are still created directly by `CelestialScene`.
+The grid, celestial shell, annotations, and M8 illustration primitives follow
+this object model. Earth, the canonical horizon plane, observer, arrows, and
+axis are still created directly by `CelestialScene`.
 `ActorScaleGroup` is consequently a second actor-management mechanism outside
 the graph.
 
@@ -221,7 +242,42 @@ path. The canonical example includes selected horizontal-grid labels and a
 Spanish callout for the south celestial pole. Annotation selection remains
 independent from associated curve visibility.
 
-## 11. Verification state
+## 11. General scientific illustration primitives
+
+M8 adds a coordinate-independent vocabulary for finite scientific diagrams:
+
+- `Marker` and `MarkerStyle` describe a finite sphere or eight-point star;
+- `LineSegment` and `SightLine` describe finite Cartesian endpoints using one
+  segment style and renderer;
+- `SampledCurve` and `CurveStyle` describe connected polylines with optional
+  start or end arrowheads;
+- `SphericalArc` supplies partial great-circle and small-circle samples to the
+  general curve path;
+- `PlaneSurface` and `SurfaceStyle` describe a finite rectangular plane with
+  explicit orientation and edge treatment.
+
+`MarkerObject`, `SegmentObject`, `CurveObject`, and `SurfaceObject` translate
+those records into PyVista meshes and actors. Each derives its initial
+visibility and opacity from its record and uses the established
+`SceneObject` lifecycle. Rebuilding on the same or another plotter first
+removes owned actors, and detaching clears both actors and retained meshes.
+
+The star marker is finite, camera-independent stellated geometry. Its color
+and radius are ordinary `MarkerStyle` values, so a large golden star does not
+require a special renderer. Thick partial arcs similarly result from
+`SphericalArc.to_curve()` plus `CurveStyle`, and are rendered by
+`CurveObject`.
+
+`IllustrationLayer` is a semantic `Layer` specialization with typed helpers
+for markers, segments and sight lines, curves, surfaces, and annotations. It
+retains insertion order and the ordinary layer lifecycle. A complete
+scientific explanation can therefore be hidden, rebuilt, detached, or removed
+as a unit without overwriting each child's own visibility selection.
+
+These primitives are public package-root exports. They are not yet used by
+the canonical local Earth/observer composition; that migration begins in M9.
+
+## 12. Verification state
 
 The M2 scientific test suite verifies:
 
@@ -296,10 +352,38 @@ The M7 roadmap gate is satisfied:
 - the legacy duplicate implementation has been removed from
   `CelestialScene`.
 
+M8 tests verify:
+
+- finite marker positions, shapes, style, validation, and rendering;
+- finite line-segment and sight-line endpoints, length, direction, style, and
+  shared rendering;
+- sampled-curve validation, style, connected rendering, and optional
+  arrowhead placement;
+- partial great-circle and small-circle endpoints, direction, radius,
+  latitude, span, sampling, and conversion to a styled `SampledCurve`;
+- plane center, right-handed frame, orthogonalization, dimensions, corners,
+  winding, area, surface style, and quadrilateral rendering;
+- primitive visibility, opacity, hide/show, detach, and rebuild without actor
+  accumulation;
+- mixed marker, segment, curve, surface, and annotation grouping through
+  `IllustrationLayer`;
+- inherited layer visibility while retaining child selections;
+- off-screen output for every renderer and the mixed illustration layer.
+
+The M8 roadmap gate is satisfied:
+
+- marker, segment, curve, arc, and plane geometry tests pass;
+- all renderer objects safely build, hide, show, detach, and rebuild;
+- the golden star uses `MarkerStyle` and the general `MarkerObject`;
+- thick partial arcs use `CurveStyle` and the general `CurveObject`;
+- the mixed illustration layer has stable ordered lifecycle behavior;
+- the canonical interactive example and full 317-test suite remain
+  operational.
+
 The repository does not yet automatically execute the canonical interactive
 example or verify Earth orientation.
 
-## 12. Strengths
+## 13. Strengths
 
 1. Compact, understandable spherical geometry.
 2. Reusable `SphericalFrame`.
@@ -310,8 +394,11 @@ example or verify Earth orientation.
 7. Explicit reproducible camera and rendering lifecycle.
 8. Configurable off-screen RGB and transparent RGBA export.
 9. Small codebase suitable for incremental improvement.
+10. Renderer-neutral finite markers, segments, curves, arcs, and planes.
+11. Reusable primitive renderers with uniform lifecycle behavior.
+12. Mixed scientific explanations grouped by `IllustrationLayer`.
 
-## 13. Liabilities
+## 14. Liabilities
 
 1. Earth and most local scene elements still bypass the graph.
 2. `CelestialScene` has too many responsibilities.
@@ -322,13 +409,15 @@ example or verify Earth orientation.
 6. Pixel output is not regression-tested across platforms.
 7. Equatorial coordinates are diagrammatic, not time-aware.
 
-## 14. Current boundary
+## 15. Current boundary
 
 Wenu3D currently owns diagrammatic geometry, PyVista rendering, fixed scene
 composition, first-class annotations, managed interactive controls, a
 reproducible camera, deterministic interactive/off-screen rendering,
 configurable image export, explicit cleanup, and a lifecycle-managed celestial
-shell.
+shell. It also owns renderer-neutral finite marker, segment, sight-line,
+sampled-curve, spherical-arc, and rectangular-plane records; their PyVista
+scene objects; and mixed illustration layers.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
