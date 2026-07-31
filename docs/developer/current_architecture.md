@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.23
+**Version:** 0.24
 **Date:** 2026-07-31
-**Status:** Description through M9.6.4 on `feature/interactive-grid-controls`
+**Status:** Description through M9.7.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -301,6 +301,15 @@ anchor exactly to the celestial origin. Each operation delegates to
 `set_transform()`, so attached actors and renderer-neutral queries change
 together. No placement mode moves centered celestial geometry or the ideal
 horizons.
+
+M9.7.1 makes observer registration lifecycle-safe after
+`LocalCartoonLayer` is attached. A newly registered composition alone is
+built on the existing plotter, inherits effective layer visibility, receives
+the layer's current transform, and contributes its actors to the layer-owned
+collection. The shared Earth and earlier observer compositions are not
+rebuilt. Registration may defer rendering for batch composition. The
+canonical scene still registers only its established observer, so its actor
+order and appearance remain unchanged.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -605,6 +614,10 @@ M9.6.4 tests verify scale changes with retained translation, restoration of
 nominal surface placement, exact semantic-anchor alignment at the origin,
 synchronized actor matrices, and validation before placement state changes.
 
+M9.7.1 tests verify attached addition of a second observer without rebuilding
+Earth, ordered observer and actor ownership, shared transform application,
+inherited hidden-layer state, and deferred rendering.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -638,8 +651,9 @@ pixel-based texture-orientation regression test.
 7. Equatorial coordinates are diagrammatic, not time-aware.
 8. Optional platform decorations are not yet selectable through canonical
    scene construction or interactive controls.
-9. `LocalCartoonTransform` is authoritative for local-cartoon queries but is
-   not yet connected to actor rendering.
+9. Dynamically rebuilding an observer composition does not yet notify its
+   parent local-cartoon layer; representation replacement is completed in a
+   later M9.7 checkpoint.
 
 ## 15. Current boundary
 

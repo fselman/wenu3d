@@ -299,3 +299,81 @@ def test_placement_modes_validate_observer_and_anchor_before_update() -> None:
         )
 
     assert layer.transform is transform
+
+
+def test_attached_layer_adds_second_observer_without_rebuilding_earth() -> None:
+    earth_actor = Mock()
+    first_actor = Mock()
+    second_actor = Mock()
+    plotter = Mock()
+    transform = LocalCartoonTransform(
+        translation=(1.0, 2.0, 3.0),
+        scale=0.5,
+    )
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=transform,
+    )
+    first = make_composition("first")
+    second = make_composition("second", position=(0.0, 0.0, -0.25))
+    layer.add_observer(first)
+    layer.earth.build = Mock(
+        side_effect=lambda current_plotter: layer.earth.actors.append(
+            earth_actor
+        )
+    )
+    first.build = Mock(
+        side_effect=lambda current_plotter: first.actors.append(first_actor)
+    )
+    second.build = Mock(
+        side_effect=lambda current_plotter: second.actors.append(second_actor)
+    )
+    layer.build(plotter)
+    plotter.render.reset_mock()
+
+    assert layer.add_observer(second) is second
+
+    layer.earth.build.assert_called_once_with(plotter)
+    second.build.assert_called_once_with(plotter)
+    assert layer.objects == [layer.earth, first, second]
+    assert layer.observer_compositions == (first, second)
+    assert layer.actors == [earth_actor, first_actor, second_actor]
+    np.testing.assert_allclose(second_actor.user_matrix, transform.matrix)
+    plotter.render.assert_called_once_with()
+
+
+def test_dynamically_added_observer_inherits_hidden_layer_state() -> None:
+    actor = Mock()
+    plotter = Mock()
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        visible=False,
+    )
+    layer.earth.build = Mock()
+    layer.build(plotter)
+    composition = make_composition("observer")
+    composition.representation.build = Mock(
+        side_effect=lambda current_plotter: (
+            composition.representation.actors.append(actor)
+        )
+    )
+
+    layer.add_observer(composition)
+
+    actor.SetVisibility.assert_called_with(False)
+
+
+def test_dynamic_observer_addition_can_defer_render() -> None:
+    plotter = Mock()
+    layer = LocalCartoonLayer(name="local", earth=make_earth())
+    layer.earth.build = Mock()
+    layer.build(plotter)
+    plotter.render.reset_mock()
+    composition = make_composition("observer")
+    composition.build = Mock()
+
+    layer.add_observer(composition, render=False)
+
+    plotter.render.assert_not_called()

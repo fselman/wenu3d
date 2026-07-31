@@ -53,6 +53,8 @@ class LocalCartoonLayer(Layer):
     def add_observer(
         self,
         composition: ObserverComposition,
+        *,
+        render: bool = True,
     ) -> ObserverComposition:
         if not isinstance(composition, ObserverComposition):
             raise TypeError("composition must be an ObserverComposition.")
@@ -61,6 +63,14 @@ class LocalCartoonLayer(Layer):
             raise ValueError(f"Observer already exists: {observer_name}")
         self._observer_compositions[observer_name] = composition
         super().add(composition)
+        plotter = self.attached_plotter
+        if plotter is not None:
+            composition.build(plotter)
+            composition._set_ancestor_visible(self.effective_visible)
+            self._apply_actor_transform(composition.actors)
+            self.actors.extend(composition.actors)
+            if render:
+                plotter.render()
         return composition
 
     def get_observer(self, name: str) -> ObserverComposition:
@@ -131,7 +141,7 @@ class LocalCartoonLayer(Layer):
         super().build(plotter)
         self._apply_actor_transform()
 
-    def _apply_actor_transform(self) -> None:
+    def _apply_actor_transform(self, actors=None) -> None:
         matrix = self.transform.matrix
-        for actor in self.actors:
+        for actor in self.actors if actors is None else actors:
             actor.user_matrix = matrix
