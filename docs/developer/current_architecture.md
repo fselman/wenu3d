@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.11
+**Version:** 0.12
 **Date:** 2026-07-31
-**Status:** Description of `feature/interactive-grid-controls` through M9.3
+**Status:** Description through M9.4.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -40,7 +40,7 @@ that integration does not yet exist.
 | `annotations.py` | Annotation records, objects, styles, and layers |
 | `controls.py` | Managed grid, annotation, and global controls |
 | `shell.py` | Celestial-shell mesh, material, presence, and callback lifecycle |
-| `earth.py` | Earth mesh loading and orientation |
+| `earth.py` | Earth orientation and lifecycle-managed Earth rendering |
 | `observer_model.py` | Renderer-neutral semantic observer record |
 | `observer.py` | Observer representations, composition, and legacy helpers |
 | `local_group.py` | Scaling a raw group of actors |
@@ -127,11 +127,10 @@ ancestor layer remains hidden.
 protection and lookup. It preserves insertion order, supports ordered
 iteration and length, and provides actor-safe `remove()` and `clear()`.
 
-The grid, celestial shell, annotations, and M8 illustration primitives follow
-this object model. Earth, the canonical horizon plane, observer, arrows, and
-axis are still created directly by `CelestialScene`.
-`ActorScaleGroup` is consequently a second actor-management mechanism outside
-the graph.
+The grid, celestial shell, Earth, annotations, and M8 illustration primitives
+follow this object model. The canonical horizon platform, observer, arrows,
+and axis are still created directly by `CelestialScene`. `ActorScaleGroup` is
+consequently a second actor-management mechanism outside the graph.
 
 M9.3 adds an `ObserverComposition` layer outside the canonical scene path. It
 associates one semantic `Observer` with one replaceable
@@ -205,10 +204,17 @@ global presence controls, but it no longer implements shell mesh, material, or
 callback behavior. The shell layer is cleared with the rest of the
 `SceneGraph` during scene cleanup.
 
-Earth orientation, tangent plane, observer, arrows, and celestial axis are
-also constructed directly by `CelestialScene`. Their styling contains several
-hard-coded values. Earth orientation divides by `cos(latitude)` and is
-singular at the geographic poles.
+`EarthObject` owns the current oriented Earth mesh, globe texture, material
+parameters, PyVista actor, and standard rebuild/detach lifecycle. It is the
+first child of the named `local_cartoon` graph layer. Its actor is also
+temporarily registered with `ActorScaleGroup` so the existing local-scale
+control remains unchanged until M9.6 replaces that parallel mechanism.
+
+The tangent platform, observer, arrows, and celestial axis are still
+constructed directly by `CelestialScene`. Their styling contains several
+hard-coded values. The legacy rendered-Earth orientation divides by
+`cos(latitude)` and remains singular at the geographic poles; the stable M9.2
+Earth-fixed geometry is not yet connected to Earth rendering.
 
 The current composition is a single-observer display convention rather than
 an Earth-fixed multi-observer model. Its horizontal frame is always local
@@ -224,10 +230,10 @@ cardinal arrows, and the seven stick-figure actors belong to the raw
 member of that scale group. Centered grid geometry remains at its configured
 sphere radius when the raw local actors are scaled.
 
-There is currently no first-class Earth object, observer model,
-local-cartoon layer, model-aware transform, or ideal-horizon object in the
-canonical scene. M9.3 supplies the observer model and representation contract,
-but scene migration remains deferred to M9.4.
+The canonical scene now has a first-class Earth object and a partial
+`local_cartoon` layer. It does not yet use the semantic observer composition,
+and it has no model-aware local transform or ideal-horizon object. The
+remaining raw local actors migrate in later M9.4 checkpoints.
 
 `Observer` is renderer-neutral and owns a stable identity, an immutable finite
 position, a validated local `SphericalFrame`, and optional geographic metadata.
@@ -454,6 +460,11 @@ compatibility, composition association, retained context, and safe attached
 representation replacement. The canonical scene continues to use the legacy
 wrapper, so M9.3 changes architecture without migrating scene ownership.
 
+M9.4.1 tests verify Earth validation, preserved mesh and texture construction,
+material parameters, actor ownership, safe rebuild and detach, graph placement
+in `local_cartoon`, and temporary participation in legacy local scaling. The
+platform, cardinal arrows, observer, and axis remain on their previous paths.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -477,7 +488,7 @@ pixel-based texture-orientation regression test.
 
 ## 14. Liabilities
 
-1. Earth and most local scene elements still bypass the graph.
+1. The platform, observer, arrows, and axis still bypass the graph.
 2. `CelestialScene` has too many responsibilities.
 3. Rendering lifecycle responsibilities have not yet moved into a separate
    render context.

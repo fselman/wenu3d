@@ -1,8 +1,12 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
+
 import numpy as np
 import pyvista as pv
 from pyvista import examples
+
 from .geometry import unit
+from .scene_object import SceneObject
 
 
 def orient_earth_to_observer(
@@ -55,3 +59,79 @@ def realistic_earth(
         longitude_deg=longitude_deg,
     )
     return earth, texture
+
+
+@dataclass
+class EarthObject(SceneObject):
+    """Lifecycle-managed rendering of the current oriented cartoon Earth."""
+
+    radius: float = 0.25
+    rotation_axis: np.ndarray = field(
+        default_factory=lambda: np.array([0.0, 0.0, 1.0])
+    )
+    observer_zenith: np.ndarray = field(
+        default_factory=lambda: np.array([0.0, 0.0, 1.0])
+    )
+    latitude_deg: float = 0.0
+    longitude_deg: float = 0.0
+    ambient: float = 0.28
+    diffuse: float = 0.78
+    specular: float = 0.10
+    specular_power: float = 12.0
+
+    _mesh: pv.PolyData | None = field(default=None, init=False, repr=False)
+    _texture: pv.Texture | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.radius = float(self.radius)
+        if not np.isfinite(self.radius) or self.radius <= 0.0:
+            raise ValueError("Earth radius must be finite and greater than zero.")
+        self.rotation_axis = unit(self.rotation_axis)
+        self.observer_zenith = unit(self.observer_zenith)
+        self.latitude_deg = float(self.latitude_deg)
+        self.longitude_deg = float(self.longitude_deg)
+        if not np.isfinite(self.latitude_deg):
+            raise ValueError("Earth observer latitude must be finite.")
+        if not -90.0 < self.latitude_deg < 90.0:
+            raise ValueError(
+                "Legacy Earth orientation requires latitude strictly between "
+                "-90 and 90 degrees."
+            )
+        if not np.isfinite(self.longitude_deg):
+            raise ValueError("Earth observer longitude must be finite.")
+
+    @property
+    def mesh(self) -> pv.PolyData | None:
+        return self._mesh
+
+    @property
+    def texture(self) -> pv.Texture | None:
+        return self._texture
+
+    def build(self, plotter: pv.Plotter) -> None:
+        self._prepare_build(plotter)
+        earth, texture = realistic_earth(
+            self.radius,
+            rotation_axis=self.rotation_axis,
+            observer_zenith=self.observer_zenith,
+            latitude_deg=self.latitude_deg,
+            longitude_deg=self.longitude_deg,
+        )
+        self._mesh = earth
+        self._texture = texture
+        self.add_actor(
+            plotter.add_mesh(
+                earth,
+                texture=texture,
+                smooth_shading=True,
+                ambient=self.ambient,
+                diffuse=self.diffuse,
+                specular=self.specular,
+                specular_power=self.specular_power,
+            )
+        )
+
+    def detach(self, *, render: bool = True) -> None:
+        super().detach(render=render)
+        self._mesh = None
+        self._texture = None

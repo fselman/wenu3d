@@ -22,6 +22,7 @@ from .curves import (
     SampledCurve,
 )
 from .curve_object import CurveObject
+from .earth import EarthObject
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .illustration import IllustrationLayer
 from .layer import Layer
@@ -62,6 +63,7 @@ __all__ = [
     "ArrowheadPlacement",
     "CurveObject",
     "CurveStyle",
+    "EarthObject",
     "Meridian",
     "Parallel",
     "SampledCurve",

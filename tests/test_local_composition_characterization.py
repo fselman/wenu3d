@@ -6,7 +6,7 @@ import pytest
 from wenu3d.earth import orient_earth_to_observer
 from wenu3d.frames import equatorial_frame, horizontal_frame
 from wenu3d.observer import add_observer
-from wenu3d.scene import CelestialScene
+from wenu3d.scene import CelestialScene, SceneGraph
 
 
 def source_sphere_point(latitude_deg: float, longitude_deg: float) -> np.ndarray:
@@ -37,6 +37,7 @@ def make_local_scene() -> CelestialScene:
     scene.equatorial = equatorial_frame(scene.latitude_deg)
     scene.style = Mock(plane_color="#d8d2c4")
     scene.plotter = Mock()
+    scene.graph = SceneGraph()
     scene.local_group = Mock()
     return scene
 
@@ -91,7 +92,7 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
 
     with (
         patch(
-            "wenu3d.scene.realistic_earth",
+            "wenu3d.earth.realistic_earth",
             return_value=(earth, texture),
         ) as realistic_earth,
         patch(
@@ -173,8 +174,14 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
             edge_color="#777777",
         ),
     ]
-    assert scene.local_group.add.call_count == 6
-    scene.local_group.extend.assert_called_once_with(observer_actors)
+    local_cartoon = scene.graph.get("local_cartoon")
+    assert local_cartoon.get("local_cartoon.earth") is scene.earth
+    assert scene.earth.attached_plotter is scene.plotter
+    assert scene.local_group.add.call_count == 5
+    assert scene.local_group.extend.call_args_list == [
+        call(scene.earth.actors),
+        call(observer_actors),
+    ]
 
 
 def test_current_stick_figure_builds_seven_raw_actors() -> None:

@@ -16,7 +16,7 @@ from .controls import (
     GlobalControlPanel,
     GridControlPanel,
 )
-from .earth import realistic_earth
+from .earth import EarthObject
 from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
 from .layer import Layer
@@ -152,24 +152,18 @@ class CelestialScene:
         east = self.horizontal.east
         north = self.horizontal.zero
 
-        earth, texture = realistic_earth(
-            self.earth_radius,
+        self.earth = EarthObject(
+            name="local_cartoon.earth",
+            radius=self.earth_radius,
             rotation_axis=self.equatorial.pole,
             observer_zenith=zenith,
             latitude_deg=self.latitude_deg,
             longitude_deg=self.longitude_deg,
         )
-        self.local_group.add(
-            self.plotter.add_mesh(
-                earth,
-                texture=texture,
-                smooth_shading=True,
-                ambient=0.28,
-                diffuse=0.78,
-                specular=0.10,
-                specular_power=12,
-            )
-        )
+        local_cartoon = Layer(name="local_cartoon")
+        local_cartoon.add(self.earth)
+        self.add(local_cartoon)
+        self.local_group.extend(self.earth.actors)
 
         plane_center = self.earth_radius * zenith + 0.012 * zenith
         plane = tangent_plane(
