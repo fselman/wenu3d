@@ -215,3 +215,87 @@ def test_attached_transform_update_can_defer_render() -> None:
 
     np.testing.assert_allclose(actor.user_matrix, transform.matrix)
     plotter.render.assert_not_called()
+
+
+def test_set_scale_preserves_translation() -> None:
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=LocalCartoonTransform(
+            translation=(1.0, 2.0, 3.0),
+            scale=0.5,
+        ),
+    )
+
+    layer.set_scale(0.25)
+
+    assert layer.transform.translation == (1.0, 2.0, 3.0)
+    assert layer.transform.scale == 0.25
+
+
+def test_place_on_surface_restores_nominal_translation() -> None:
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=LocalCartoonTransform(
+            translation=(1.0, 2.0, 3.0),
+            scale=0.4,
+        ),
+    )
+    layer.add_observer(make_composition("navigator"))
+
+    layer.place_on_surface(observer="navigator")
+
+    assert layer.transform == LocalCartoonTransform(scale=0.4)
+
+
+def test_place_observer_anchor_at_origin_updates_model_and_actor() -> None:
+    actor = Mock()
+    plotter = Mock()
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=LocalCartoonTransform(scale=0.5),
+    )
+    layer.add_observer(make_composition("navigator"))
+    layer.earth.build = Mock(
+        side_effect=lambda current_plotter: layer.earth.actors.append(actor)
+    )
+    layer.build(plotter)
+    plotter.render.reset_mock()
+
+    layer.place_observer_anchor_at_origin(
+        observer="navigator",
+        anchor="feet",
+    )
+
+    np.testing.assert_allclose(
+        layer.observer_anchor("navigator", "feet"),
+        [0.0, 0.0, 0.0],
+    )
+    assert layer.transform.scale == 0.5
+    np.testing.assert_allclose(actor.user_matrix, layer.transform.matrix)
+    plotter.render.assert_called_once_with()
+
+
+def test_placement_modes_validate_observer_and_anchor_before_update() -> None:
+    transform = LocalCartoonTransform(
+        translation=(1.0, 2.0, 3.0),
+        scale=0.5,
+    )
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=transform,
+    )
+    layer.add_observer(make_composition("navigator"))
+
+    with pytest.raises(KeyError):
+        layer.place_on_surface(observer="missing")
+    with pytest.raises(KeyError, match="Unknown observer anchor"):
+        layer.place_observer_anchor_at_origin(
+            observer="navigator",
+            anchor="missing",
+        )
+
+    assert layer.transform is transform

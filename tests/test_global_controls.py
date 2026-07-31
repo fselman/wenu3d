@@ -4,7 +4,6 @@ import pytest
 
 from wenu3d import GlobalControlPanel
 from wenu3d.scene import CelestialScene
-from wenu3d.transforms import LocalCartoonTransform
 
 
 def make_plotter() -> Mock:
@@ -102,9 +101,6 @@ def test_global_panel_callbacks_update_scene() -> None:
     scene.controls = Mock()
     scene.controls.register_panel.side_effect = lambda panel: panel
     scene.local_cartoon = Mock()
-    scene.local_cartoon.transform = LocalCartoonTransform(
-        translation=(1.0, 2.0, 3.0),
-    )
     scene._local_scale = 1.0
     scene.shell = Mock()
     scene.shell.presence = 1.0
@@ -117,9 +113,7 @@ def test_global_panel_callbacks_update_scene() -> None:
     scene.plotter.render.reset_mock()
     panel.set_local_scale(0.5)
 
-    transform = scene.local_cartoon.set_transform.call_args.args[0]
-    assert transform.translation == (1.0, 2.0, 3.0)
-    assert transform.scale == 0.5
+    scene.local_cartoon.set_scale.assert_called_once_with(0.5)
     scene.plotter.render.assert_not_called()
 
 

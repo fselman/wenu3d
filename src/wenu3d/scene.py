@@ -30,7 +30,6 @@ from .shell import CelestialShellObject
 from .style import SceneStyle
 from .surface_object import SurfaceObject
 from .surfaces import PlaneSurface, SurfaceStyle
-from .transforms import LocalCartoonTransform
 from .vector_object import VectorObject
 from .vectors import VectorArrow, VectorStyle
 
@@ -321,12 +320,7 @@ class CelestialScene:
 
     def _set_local_scale(self, value: float) -> None:
         self._local_scale = float(value)
-        self.local_cartoon.set_transform(
-            LocalCartoonTransform(
-                translation=self.local_cartoon.transform.translation,
-                scale=self._local_scale,
-            )
-        )
+        self.local_cartoon.set_scale(self._local_scale)
 
     def _set_sphere_presence(self, value: float) -> None:
         self.shell.set_presence(value)

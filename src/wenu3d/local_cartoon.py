@@ -89,6 +89,44 @@ class LocalCartoonLayer(Layer):
         composition = self.get_observer(observer)
         return self.transform.apply_points(composition.anchor(anchor))
 
+    def set_scale(self, scale: float, *, render: bool = True) -> None:
+        self.set_transform(
+            LocalCartoonTransform(
+                translation=self.transform.translation,
+                scale=scale,
+            ),
+            render=render,
+        )
+
+    def place_on_surface(
+        self,
+        *,
+        observer: str,
+        render: bool = True,
+    ) -> None:
+        """Restore nominal Earth-relative placement for ``observer``."""
+        self.get_observer(observer)
+        self.set_transform(
+            LocalCartoonTransform(scale=self.transform.scale),
+            render=render,
+        )
+
+    def place_observer_anchor_at_origin(
+        self,
+        *,
+        observer: str,
+        anchor: str,
+        render: bool = True,
+    ) -> None:
+        """Translate the local cartoon so a semantic anchor reaches origin."""
+        composition = self.get_observer(observer)
+        anchor_position = composition.anchor(anchor)
+        transform = LocalCartoonTransform(
+            translation=-self.transform.scale * anchor_position,
+            scale=self.transform.scale,
+        )
+        self.set_transform(transform, render=render)
+
     def build(self, plotter) -> None:
         super().build(plotter)
         self._apply_actor_transform()

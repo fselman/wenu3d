@@ -11,7 +11,6 @@ from wenu3d.observer import (
     add_observer,
 )
 from wenu3d.scene import CelestialScene, SceneGraph
-from wenu3d.transforms import LocalCartoonTransform
 
 
 def source_sphere_point(latitude_deg: float, longitude_deg: float) -> np.ndarray:
@@ -289,17 +288,12 @@ def test_current_local_scale_does_not_modify_centered_grid_model() -> None:
     scene = make_local_scene()
     scene._local_scale = 1.0
     scene.local_cartoon = Mock()
-    scene.local_cartoon.transform = LocalCartoonTransform(
-        translation=(0.1, 0.2, 0.3),
-    )
     grid_before = scene.make_horizontal_grid(name="before")
 
     scene._set_local_scale(0.35)
     grid_after = scene.make_horizontal_grid(name="after")
 
-    transform = scene.local_cartoon.set_transform.call_args.args[0]
-    assert transform.translation == (0.1, 0.2, 0.3)
-    assert transform.scale == 0.35
+    scene.local_cartoon.set_scale.assert_called_once_with(0.35)
     scene.plotter.render.assert_not_called()
     assert scene._local_scale == 0.35
     assert grid_before.radius == pytest.approx(0.992)

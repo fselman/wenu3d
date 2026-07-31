@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.22
+**Version:** 0.23
 **Date:** 2026-07-31
-**Status:** Description through M9.6.3 on `feature/interactive-grid-controls`
+**Status:** Description through M9.6.4 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -290,6 +290,17 @@ local-scale control preserves the transform's translation while replacing its
 uniform scale. This model-aware path fully replaces and retires
 `ActorScaleGroup`; the canonical identity transform leaves accepted output
 unchanged.
+
+M9.6.4 adds explicit model-aware placement operations to
+`LocalCartoonLayer`. `set_scale()` changes uniform scale without discarding the
+current translation. `place_on_surface(observer=...)` validates the selected
+observer and restores the nominal Earth-relative placement by setting layer
+translation to zero while retaining scale. `place_observer_anchor_at_origin()`
+preserves scale and computes the translation that maps a named representation
+anchor exactly to the celestial origin. Each operation delegates to
+`set_transform()`, so attached actors and renderer-neutral queries change
+together. No placement mode moves centered celestial geometry or the ideal
+horizons.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -589,6 +600,10 @@ M9.6.3 tests verify actor matrices after non-identity builds, synchronized
 model-and-actor updates on attached layers, deferred rendering, preservation
 of translation through the global scale control, exclusion of centered
 celestial geometry, and removal of the parallel raw-actor scale group.
+
+M9.6.4 tests verify scale changes with retained translation, restoration of
+nominal surface placement, exact semantic-anchor alignment at the origin,
+synchronized actor matrices, and validation before placement state changes.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
