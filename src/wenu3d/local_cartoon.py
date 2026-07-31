@@ -6,6 +6,7 @@ from .earth import EarthObject
 from .layer import Layer
 from .observer import ObserverComposition, ObserverRepresentation
 from .scene_object import SceneObject
+from .segments import SegmentStyle, SightLine
 from .transforms import LocalCartoonTransform
 
 
@@ -117,6 +118,23 @@ class LocalCartoonLayer(Layer):
     def observer_anchor(self, observer: str, anchor: str):
         composition = self.get_observer(observer)
         return self.transform.apply_points(composition.anchor(anchor))
+
+    def make_observer_sight_line(
+        self,
+        *,
+        observer: str,
+        anchor: str,
+        target_position,
+        style: SegmentStyle | None = None,
+        visible: bool = True,
+    ) -> SightLine:
+        """Snapshot a finite sight line from one transformed named anchor."""
+        return SightLine(
+            observer_position=self.observer_anchor(observer, anchor),
+            target_position=target_position,
+            style=style or SegmentStyle(),
+            visible=visible,
+        )
 
     def set_scale(self, scale: float, *, render: bool = True) -> None:
         self.set_transform(

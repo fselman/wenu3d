@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.26
+**Version:** 0.27
 **Date:** 2026-07-31
-**Status:** Description through M9.7.3 on `feature/interactive-grid-controls`
+**Status:** Description through M9.7.4 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -332,6 +332,16 @@ inherited visibility, and renders once unless deferred. The canonical scene
 continues to select `StickFigureRepresentation`, so its appearance is
 unchanged.
 
+M9.7.4 adds `LocalCartoonLayer.make_observer_sight_line()`. The factory
+resolves a named anchor through the current representation and authoritative
+local transform, then creates an immutable `SightLine` whose target remains
+the caller-supplied fixed display position. This makes the local-versus-
+celestial boundary explicit: only the origin is derived from transformed
+finite cartoon geometry. Calling the factory again after a transform or
+representation change produces a reproducible updated snapshot rather than
+introducing hidden live dependencies. This completes the four planned M9.7
+checkpoints without adding sight lines to the canonical scene.
+
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
 zenith, independent of the observer's finite cartoon position. It exposes its
@@ -648,6 +658,11 @@ M9.7.3 tests verify point-representation anchors, one-actor rendering and
 radius validation, attached replacement with retained observer and horizon,
 stale-actor removal, shared-transform application, transformed anchor queries,
 and deferred rendering.
+
+M9.7.4 tests verify transformed named-anchor origins, fixed target positions,
+anchor resolution after representation replacement, multiple observers
+sharing one target, style and visibility preservation, and invalid observer or
+anchor handling.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
