@@ -14,6 +14,7 @@ from .controls import (
 )
 from .coordinates import (
     EquatorialCoordinateGeometry,
+    EquatorialCoordinateIllustration,
     EquatorialLongitudeKind,
     HorizontalCoordinateGeometry,
     HorizontalCoordinateIllustration,
@@ -74,6 +75,7 @@ __all__ = [
     "CameraState",
     "ControlManager",
     "EquatorialCoordinateGeometry",
+    "EquatorialCoordinateIllustration",
     "EquatorialLongitudeKind",
     "HorizontalCoordinateGeometry",
     "HorizontalCoordinateIllustration",

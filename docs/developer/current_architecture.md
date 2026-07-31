@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.34
+**Version:** 0.35
 **Date:** 2026-07-31
-**Status:** Description through M10.4 on `feature/interactive-grid-controls`
+**Status:** Description through M10.5 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -517,6 +517,16 @@ targets are rejected because their longitude and hour circle are undefined,
 and zero-span arcs are omitted independently. No geometry is added to the
 canonical scene.
 
+M10.5 adds `EquatorialCoordinateIllustration`, an `IllustrationLayer` that
+assembles the target marker, optional declination and longitude curve objects,
+and optional associated annotations while exposing all geometry, objects, and
+styles. Diagrammatic longitude labels use degrees and name the quantity
+explicitly. Right-ascension labels use hours and include the required origin
+description. Default curve styles place end arrowheads, while callers retain
+control of both `CurveStyle` records, the common `AnnotationStyle`, precision,
+and label visibility. Zero-span components are omitted independently, and the
+canonical scene remains unchanged.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -775,6 +785,11 @@ endpoints, positive and negative declination direction, diagrammatic-longitude
 naming, right-ascension hours and required origin description, independent
 zero-span omission, polar rejection, and convention, target, frame, and
 sampling validation.
+
+M10.5 tests verify ordered ownership, target-marker linkage, diagrammatic and
+right-ascension label units and conventions, associations, caller-supplied
+styles and arrowheads, optional labels, independent zero-span omission,
+off-screen actor construction, validation, and finite radial label offsets.
 
 ## 13. Strengths
 

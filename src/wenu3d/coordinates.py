@@ -252,6 +252,144 @@ class EquatorialCoordinateGeometry:
         )
 
 
+class EquatorialCoordinateIllustration(IllustrationLayer):
+    """Renderable target, declination, longitude, and convention labels."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        target: CelestialTarget,
+        frame: SphericalFrame,
+        longitude_kind: EquatorialLongitudeKind = "diagrammatic",
+        right_ascension_origin: str | None = None,
+        samples: int = 101,
+        declination_style: CurveStyle | None = None,
+        longitude_style: CurveStyle | None = None,
+        annotation_style: AnnotationStyle | None = None,
+        angle_decimals: int = 1,
+        show_labels: bool = True,
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        if (
+            isinstance(angle_decimals, (bool, np.bool_))
+            or not isinstance(angle_decimals, (int, np.integer))
+            or angle_decimals < 0
+        ):
+            raise ValueError("angle_decimals must be a non-negative integer.")
+        if not isinstance(show_labels, (bool, np.bool_)):
+            raise TypeError("show_labels must be a boolean.")
+        if declination_style is not None and not isinstance(
+            declination_style,
+            CurveStyle,
+        ):
+            raise TypeError("declination_style must be a CurveStyle.")
+        if longitude_style is not None and not isinstance(
+            longitude_style,
+            CurveStyle,
+        ):
+            raise TypeError("longitude_style must be a CurveStyle.")
+        if annotation_style is not None and not isinstance(
+            annotation_style,
+            AnnotationStyle,
+        ):
+            raise TypeError("annotation_style must be an AnnotationStyle.")
+
+        super().__init__(name=name, visible=visible, opacity=opacity)
+        self.target = target
+        self.geometry = EquatorialCoordinateGeometry(
+            target=target,
+            frame=frame,
+            longitude_kind=longitude_kind,
+            right_ascension_origin=right_ascension_origin,
+            samples=samples,
+        )
+        self.declination_style = declination_style or CurveStyle(
+            color="#8b5fbf",
+            width=4.0,
+            arrowheads="end",
+        )
+        self.longitude_style = longitude_style or CurveStyle(
+            color="#bd6f3f",
+            width=4.0,
+            arrowheads="end",
+        )
+        self.annotation_style = annotation_style or AnnotationStyle()
+        self.angle_decimals = int(angle_decimals)
+        self.show_labels = bool(show_labels)
+
+        self.marker_object: MarkerObject = self.add_marker(
+            f"{name}.target",
+            target.as_marker(),
+        )
+        self.declination_curve_object: CurveObject | None = None
+        self.longitude_curve_object: CurveObject | None = None
+        self.declination_annotation: AnnotationObject | None = None
+        self.longitude_annotation: AnnotationObject | None = None
+
+        declination_arc = self.geometry.declination_arc
+        if declination_arc is not None:
+            self.declination_curve_object = self.add_curve(
+                f"{name}.declination",
+                declination_arc.to_curve(style=self.declination_style),
+            )
+            if self.show_labels:
+                self.declination_annotation = self._add_angle_annotation(
+                    name=f"{name}.declination.label",
+                    text=(
+                        "Declination = "
+                        f"{self.geometry.declination_deg:.{self.angle_decimals}f}°"
+                    ),
+                    curve_object=self.declination_curve_object,
+                )
+
+        longitude_arc = self.geometry.longitude_arc
+        if longitude_arc is not None:
+            self.longitude_curve_object = self.add_curve(
+                f"{name}.longitude",
+                longitude_arc.to_curve(style=self.longitude_style),
+            )
+            if self.show_labels:
+                self.longitude_annotation = self._add_angle_annotation(
+                    name=f"{name}.longitude.label",
+                    text=self._longitude_annotation_text(),
+                    curve_object=self.longitude_curve_object,
+                )
+
+    def _longitude_annotation_text(self) -> str:
+        if self.geometry.longitude_kind == "right_ascension":
+            return (
+                f"{self.geometry.longitude_label} = "
+                f"{self.geometry.right_ascension_hours:.{self.angle_decimals}f} h"
+            )
+        return (
+            f"{self.geometry.longitude_label} = "
+            f"{self.geometry.longitude_deg:.{self.angle_decimals}f}°"
+        )
+
+    def _add_angle_annotation(
+        self,
+        *,
+        name: str,
+        text: str,
+        curve_object: CurveObject,
+    ) -> AnnotationObject:
+        points = curve_object.curve.as_array()
+        anchor = points[len(points) // 2]
+        offset = 0.035 * self.target.shell_radius * anchor / np.linalg.norm(anchor)
+        return self.add_annotation(
+            name,
+            Annotation(
+                text=text,
+                anchor=anchor,
+                offset=offset,
+                style=self.annotation_style,
+                associated_with=curve_object.name,
+            ),
+        )
+
+
 class HorizontalCoordinateIllustration(IllustrationLayer):
     """Renderable target, altitude, azimuth, and convention labels."""
 
