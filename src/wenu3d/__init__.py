@@ -28,6 +28,7 @@ from .marker_object import MarkerObject
 from .segment_object import SegmentObject
 from .segments import LineSegment, SegmentStyle, SightLine
 from .surfaces import PlaneSurface, SurfaceStyle
+from .surface_object import SurfaceObject
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
 from .scene import CelestialScene, SceneGraph
@@ -67,6 +68,7 @@ __all__ = [
     "SightLine",
     "PlaneSurface",
     "SurfaceStyle",
+    "SurfaceObject",
     "SceneObject",
     "CelestialShellObject",
     "CelestialScene",
