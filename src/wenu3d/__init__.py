@@ -16,6 +16,7 @@ from .curves import Meridian, Parallel
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .layer import Layer
 from .scene_object import SceneObject
+from .shell import CelestialShellObject
 from .scene import CelestialScene, SceneGraph
 from .style import SceneStyle
 
@@ -39,6 +40,7 @@ __all__ = [
     "GridLayer",
     "Layer",
     "SceneObject",
+    "CelestialShellObject",
     "CelestialScene",
     "SceneGraph",
     "SceneStyle",
