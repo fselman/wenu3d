@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.17
+**Version:** 0.18
 **Date:** 2026-07-31
-**Status:** Description through M9.5.3 on `feature/interactive-grid-controls`
+**Status:** Description through M9.5.4 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -230,6 +230,11 @@ West, North, and South through the existing solid PyVista-arrow path.
 `VectorArrow` and `VectorStyle` are renderer-neutral general records rather
 than local-specific types. Replacing or removing a decoration preserves the
 platform surface and uses the standard attached-layer lifecycle.
+
+`CardinalLinesDecoration` is an optional alternative containing validated
+East, West, North, and South line segments and associated inscriptions. It
+reuses `SegmentObject` and `AnnotationObject` and is not selected by the
+canonical scene, so accepted output remains unchanged.
 
 Earth, platform, cardinal-vector, and observer actors are temporarily
 registered with `ActorScaleGroup` so the existing local-scale control remains

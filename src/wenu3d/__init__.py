@@ -37,6 +37,7 @@ from .observer import (
 )
 from .observer_model import Observer
 from .platforms import (
+    CardinalLinesDecoration,
     CardinalDirectionsDecoration,
     LocalPlatform,
     PlatformDecoration,
@@ -92,6 +93,7 @@ __all__ = [
     "ObserverRepresentation",
     "StickFigureRepresentation",
     "CardinalDirectionsDecoration",
+    "CardinalLinesDecoration",
     "LocalPlatform",
     "PlatformDecoration",
     "LineSegment",
