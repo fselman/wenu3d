@@ -1,8 +1,9 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.1
-**Date:** 2026-07-30  
-**Status:** Revised post-M6 incremental migration path
+**Version:** 1.2
+**Date:** 2026-07-31
+**Status:** Revised post-M8 path for distinct celestial and local-cartoon
+geometry
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -59,10 +60,14 @@ does not import Wenu.
 | M10 | Coordinate and parallax illustrations |
 | M11 | Horizon A release candidate |
 
-M0 through M6 are completed history and remain unchanged by version 1.1. The
-post-M6 path is expanded because concrete illustration requirements now
-justify reusable finite markers, sight lines, partial spherical arcs, multiple
-observers, decorated horizon planes, and scale-comparison scenes.
+M0 through M8 are completed history at the start of version 1.2. The remaining
+path distinguishes centered celestial geometry from the finite local cartoon.
+The celestial sphere, target directions, coordinate curves, observer-specific
+ideal horizons, and centered direction lines remain angular constructions.
+One cartoon Earth, observer representations, local platforms or vehicles,
+decorations, and finite observer sight lines form transformable local
+composition. A displayed celestial marker may participate in both domains
+without conflating their scientific meanings.
 
 ## 4. M0 — Architectural baseline
 
@@ -310,56 +315,142 @@ coordinate system.
 
 ### Goal
 
-Bring local astronomical geometry into the scene graph and support more than
-one observer.
+Bring the finite Earth-and-observer cartoon into the scene graph without
+conflating it with centered celestial geometry. Establish one Earth-fixed
+world frame, semantic observers, replaceable representations, coherent
+model-aware transforms, and multiple observers while preserving the canonical
+visual output incrementally.
 
 ### Work
 
-1. Make Earth an explicit scene object with preserved texture and axis
-   orientation.
-2. Make an observer an explicit object with a finite Cartesian position and
-   validated observer-relative frame.
-3. Support multiple observers, including observers on opposite sides of
-   Earth.
-4. Make the tangent horizon an observer-relative semi-opaque plane.
-5. Separate horizon geometry from interchangeable decorations.
-6. Provide North, East, South, and West lines and inscriptions.
-7. Provide a compass-rose decoration.
-8. Provide a Nainoa Thompson navigation decoration from validated vector
-   geometry or an explicit texture.
-9. Bring observer figures, direction arrows, planes, axes, and related
-   annotations into a local scene layer.
-10. Retire `ActorScaleGroup` once fully replaced.
-11. Define or reject geographic-pole behavior.
-12. Move hard-coded style only as each owning object is formalized.
+M9 is implemented through small checkpoints. Each checkpoint leaves Wenu3D
+working and preserves appearance unless an explicitly requested new mode is
+enabled.
+
+#### M9.1 — Characterize the current single-observer composition
+
+Add tests and documentation only. Characterize:
+
+- Earth orientation and texture-correction conventions;
+- the current fixed observer at local `+z` and the East-North-Zenith frame;
+- equatorial-pole orientation;
+- the `cos(latitude)` geographic-pole singularity as a known limitation, not
+  desired behavior;
+- membership of Earth, stick figure, displaced tangent platform, cardinal
+  arrows, axis, and `ActorScaleGroup`;
+- centered grids as independent from local actor scale;
+- absence of first-class Earth, observer composition, transform, and ideal
+  horizon objects.
+
+Do not change visual output or runtime implementation.
+
+#### M9.2 — Earth-fixed observer geometry
+
+1. Define one world Cartesian frame and one Earth orientation per scene.
+2. Add renderer-neutral conversion from geographic longitude and latitude to
+   a finite position on that Earth and a validated East-North-Zenith frame.
+3. Support geographic poles through a documented longitude-based
+   local-meridian convention without division by `cos(latitude)`.
+4. Verify La Ligua, equatorial, polar, and antipodal reference sites.
+5. Adding an observer must never reorient or duplicate Earth.
+
+#### M9.3 — Semantic observer and replaceable representation
+
+1. Add a renderer-neutral `Observer` containing identity, location or finite
+   position, and local frame.
+2. Define an `ObserverRepresentation` interface for optional drawable
+   geometry and named semantic anchors.
+3. Wrap the existing stick figure as the first representation without changing
+   its appearance.
+4. Add an `ObserverComposition` associating the model, representation,
+   platform or vehicle context, decorations, and annotations.
+5. Keep mesh-specific offsets below this API. Representation anchors such as
+   feet and eye remain distinct from intrinsic observer geometry.
+
+#### M9.4 — Earth and local-cartoon scene graph
+
+1. Make Earth an explicit scene object with preserved texture and orientation.
+2. Introduce one `LocalCartoonLayer` owning the shared Earth and one or more
+   observer compositions.
+3. Bring the current local actors into the graph while preserving rendering.
+4. Move hard-coded style only as each owning object is formalized.
+5. Keep `ActorScaleGroup` until the replacement transform is complete.
+
+#### M9.5 — Ideal horizons and local platforms
+
+1. Associate with each observer an ideal horizon through the celestial origin,
+   perpendicular to that observer's zenith.
+2. Preserve the finite local platform as a separate object in its observer
+   composition, tangent to the cartoon Earth when surface-anchored.
+3. Keep each platform parallel to its observer's ideal horizon while allowing
+   different centers.
+4. Add North, East, South, and West lines and inscriptions as platform
+   decoration.
+5. Add interchangeable compass-rose and Nainoa Thompson navigation
+   decorations from validated vectors or an explicit texture.
+6. Do not show a new ideal-horizon surface by default if it changes canonical
+   output.
+
+#### M9.6 — Model-aware transforms and placement modes
+
+1. Add the minimum renderer-neutral translation and uniform-scale transform
+   required by the local cartoon.
+2. Make that transform authoritative for both rendered actors and queries of
+   positions and semantic anchors; do not transform actors alone.
+3. Support coherent transformation of the shared Earth and all observer
+   compositions for scale comparisons.
+4. Support surface placement and aligning a selected observer anchor with the
+   celestial origin.
+5. Transform only the finite local cartoon. Leave the shell, target directions,
+   displayed markers, centered curves, and ideal horizons fixed.
+6. Retire `ActorScaleGroup` only after this path fully replaces it.
+
+#### M9.7 — Multiple observers and representation replacement
+
+1. Support multiple observers on the shared Earth without special-case scene
+   code.
+2. Demonstrate observers at antipodal sites with distinct local frames and
+   ideal horizons.
+3. Replace the stick figure with a minimal alternative representation without
+   changing observer geometry or higher-level composition APIs.
+4. Verify that named-anchor sight-line origins follow model-aware transforms.
 
 ### Gate
 
-- observer position and local-frame tests pass;
-- Earth orientation is verified for La Ligua and reference sites;
-- two observers can coexist without special-case scene code;
-- horizon geometry follows its observer;
-- cardinal, compass-rose, and navigation decorations are interchangeable;
-- local visibility and scale work through the layer;
-- all local elements appear in the graph;
+- M9.1 characterization passes without source changes;
+- one fixed Earth orientation supports La Ligua, equatorial, polar, and
+  antipodal observers;
+- observer positions and East-North-Zenith frames are geometrically verified;
+- semantic observers and replaceable representations remain separate;
+- named anchors remain correct after representation replacement and local
+  transforms;
+- two observers coexist without duplicating or reorienting Earth;
+- their ideal horizons pass through the celestial origin and their local
+  platforms are independently positioned;
+- cardinal, compass-rose, and navigation decorations are interchangeable on
+  local platforms;
+- local visibility, translation, and scale work through the graph;
+- `ActorScaleGroup` is retired without changing canonical appearance;
 - interactive and batch renders succeed.
 
 ### Working product
 
-Earth, observers, and decorated local horizons follow the common object
-architecture.
+One Earth, semantic observers, replaceable representations, decorated local
+platforms, and observer-specific ideal horizons follow the common object
+architecture without mixing cartoon scale with celestial geometry.
 
 ## 14. M10 — Coordinate and parallax illustrations
 
 ### Goal
 
 Assemble the reusable objects into complete scientifically meaningful
-illustrations.
+illustrations that combine abstract celestial geometry and finite local-cartoon
+geometry without confusing their meanings.
 
 ### Work
 
-1. Add a finite star point on the celestial sphere with configurable marker
-   style.
+1. Add a celestial target that retains a unit direction and derives one
+   configurable displayed marker position on the shell.
 2. Add horizontal-coordinate composition helpers:
    - altitude arc along the star's vertical circle from horizon to star;
    - azimuth arc on the horizon from North to the vertical-circle foot;
@@ -371,31 +462,45 @@ illustrations.
    - associated labels and optional arrowheads.
 4. Keep diagrammatic equatorial longitude distinct from absolute right
    ascension when time or sidereal orientation is absent.
-5. Add two finite sight lines from two observer positions to one common star
-   endpoint on the celestial sphere.
-6. Add paired large-Earth and small-Earth configurations. Hold the celestial
-   sphere and star fixed while scaling Earth, observer positions, horizon
-   planes, and observer separation together.
-7. Demonstrate how sight-line convergence becomes visually negligible when
-   the observer baseline is small compared with star distance.
-8. Preserve direct access to every marker, curve, line, plane, annotation, and
-   style used by the convenience compositions.
+5. Ensure coordinate arcs and ideal horizons use the celestial origin and
+   target direction, not displaced cartoon-observer positions.
+6. Add an optional centered direction line from the celestial origin to the
+   displayed marker.
+7. Add finite sight lines from named observer anchors to that same marker.
+8. Add explicit scale-comparison scenes. Hold the shell, target direction,
+   displayed marker, coordinate curves, and ideal horizons fixed while
+   transforming only the local cartoon.
+9. Demonstrate conspicuous and negligible finite baselines and an explicit
+   observer-anchor-at-origin presentation.
+10. Treat parallax or convergence as an explicitly requested composition, not
+    an implicit consequence of ordinary coordinate helpers.
+11. Preserve direct access to every primitive, observer, representation,
+    composition, transform, annotation, and style used by convenience helpers.
 
 ### Gate
 
 - altitude, azimuth, declination, and right-ascension arc endpoints are
   geometrically verified;
 - coordinate labels state the convention actually used;
+- coordinate curves and ideal horizons remain centered under every local
+  transform;
+- target direction and displayed position are explicitly linked but not
+  conflated;
 - both sight lines share the same finite star endpoint;
-- the Earth-to-sphere scale ratio is explicit and reproducible;
-- large-Earth and small-Earth illustrations export deterministically;
-- their visual comparison communicates the intended convergence limit;
+- centered direction lines originate at the celestial origin;
+- observer sight lines resolve named transformed anchors;
+- local-to-sphere scale and placement are explicit and reproducible;
+- surface, small-cartoon, and observer-at-origin illustrations export
+  deterministically;
+- their comparison communicates the directional limit without changing
+  celestial geometry;
 - interactive and batch renders succeed.
 
 ### Working product
 
 A scientific-illustration toolkit that produces reusable coordinate, horizon,
-navigation, and finite-distance parallax diagrams.
+navigation, directional-limit, and explicitly requested finite-distance
+parallax diagrams.
 
 ## 15. M11 — Product hardening
 
@@ -433,9 +538,11 @@ Defer:
 - renderer plugins inside Wenu;
 - complete transparency semantics for every possible Wenu layer.
 
-Horizon B may supply celestial objects as directions. It must preserve the
-distinction between those directional inputs and Horizon A finite positioned
-targets rather than silently reinterpreting finite illustrations.
+Horizon B may supply celestial objects as directions. The adapter maps those
+directions into the abstract celestial domain and derives shell positions for
+display. It must not silently assign a physical finite distance to a
+directional target merely because local-cartoon sight lines can terminate at
+the displayed marker.
 
 Record real adapter requirements during Horizon A, but do not redesign for
 hypothetical needs.

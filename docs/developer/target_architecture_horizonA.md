@@ -1,9 +1,9 @@
 # Wenu3D Target Architecture — Horizon A
 
-**Version:** 1.1
-**Date:** 2026-07-30  
-**Status:** Revised post-M6 target for the standalone scientific-illustration
-product
+**Version:** 1.2
+**Date:** 2026-07-31
+**Status:** Revised post-M8 target with distinct celestial and local-cartoon
+geometry domains
 
 ## 1. Purpose
 
@@ -80,21 +80,32 @@ construct widgets.
 Horizon A does not import Wenu. Simple arrays and data records form the future
 adapter boundary.
 
-### Finite diagram geometry before directional integration
+### Complementary geometric domains
 
-Horizon A supports finite Cartesian illustrations in which Earth, observers,
-the celestial sphere, stars, rays, planes, and curves have explicit positions
-and relative scales. A star displayed on the celestial sphere may therefore
-be a finite common endpoint for multiple sight lines.
+Horizon A composes two distinct but compatible geometric domains.
 
-Changing the ratio between Earth size, observer separation, and
-celestial-sphere radius is a valid scientific operation. It can illustrate how
-visibly converging sight lines become indistinguishable as the baseline becomes
-small compared with the star distance.
+The **abstract celestial domain** represents directions and angular geometry.
+The celestial sphere is a spherical display surface with arbitrary rendered
+radius. Stars are scientifically directions; coordinate grids, great and
+small circles, coordinate arcs, observer-specific ideal horizons, and optional
+center-to-target direction lines are centered on the celestial origin. Their
+geometry does not depend on the scale or placement of the cartoon Earth.
 
-The future Wenu adapter may instead supply celestial objects as directions.
-That Horizon B interpretation must not replace or weaken Horizon A finite
-geometry.
+The **finite local-cartoon domain** contains explanatory objects such as Earth,
+observer representations, platforms or vehicles, decorations, and finite
+observer-to-target sight lines. They have explicit displayed positions and
+deliberately exaggerated relative scales. They explain observer location and
+orientation without redefining celestial coordinates.
+
+A celestial target retains a unit direction and derives a finite displayed
+position on the shell. Spherical constructions consume the direction. An
+explicit convergence or parallax illustration may use the displayed position
+as the common endpoint of finite cartoon sight lines.
+
+Changing local-cartoon scale or placement must not alter the shell, target
+direction, displayed marker, coordinate curves, or centered ideal planes. The
+future Wenu adapter may supply directions directly and must not silently treat
+a displayed shell position as a physical finite distance.
 
 ## 4. Target components
 
@@ -104,7 +115,9 @@ CelestialScene
 │   ├── CelestialShellLayer
 │   ├── ReferenceGridLayer
 │   ├── ScientificIllustrationLayer
-│   ├── LocalSceneLayer
+│   ├── LocalCartoonLayer
+│   │   ├── EarthObject
+│   │   └── ObserverComposition(s)
 │   └── AnnotationLayer
 ├── RenderContext
 │   ├── PyVista Plotter
@@ -194,6 +207,11 @@ Objects should accept sampled Cartesian vectors or equivalent simple geometry
 so a future Wenu adapter can translate Wenu layers without changing PyVista
 rendering internals.
 
+Scientific records distinguish a target direction from its derived displayed
+shell position. Centered celestial planes and curves use the celestial origin.
+Local-cartoon objects use an explicit composition transform. Parallel
+orientation does not imply common position or common scientific meaning.
+
 ## 8. Renderable objects and layers
 
 A general curve object renders supplied sampled geometry with color, opacity,
@@ -219,30 +237,83 @@ visible and removable while retaining the lifecycle of each child.
 The celestial shell owns its mesh, material refresh, style, and camera
 callback lifecycle.
 
-Earth, plane, observer, and direction arrows form a composite local layer with
-visibility and group scale. `ActorScaleGroup` is retired once that layer fully
-replaces it.
+Earth and observer compositions form a `LocalCartoonLayer` with coherent
+visibility and transform state. One Earth may contain multiple geographically
+placed observers; an observer composition does not own or duplicate Earth.
+`ActorScaleGroup` is retired once the model-aware transform path replaces it.
+
+### Earth-fixed geometry
+
+One world Cartesian frame and one Earth orientation apply to the complete
+scene. Geographic longitude and latitude map each observer to a position on
+that Earth and to a validated local East-North-Zenith frame. Adding another
+observer never reorients or duplicates Earth.
+
+Polar sites are supported with a documented longitude-based local-meridian
+convention. Construction must not divide by `cos(latitude)` at the geographic
+poles.
+
+### Semantic observers and replaceable representations
+
+An `Observer` is renderer-neutral scientific geometry: identity, geographic
+location or explicit finite position, and a validated local frame. An
+`ObserverRepresentation` is optional drawable geometry such as the existing
+stick figure, a navigator, an instrument, an observatory, or no visible person.
+
+An `ObserverComposition` associates one observer with one representation,
+optional platform or vehicle context, decorations, annotations, and named
+anchors. Representation-specific anchors such as feet or eye are supplied by
+the representation through stable semantic names; they are not silently
+treated as intrinsic properties of the abstract observer.
+
+Higher-level operations request an anchor by name and do not calculate
+mesh-specific offsets or manipulate individual actors.
+
+### Local-cartoon transforms
+
+A local-cartoon transform contains translation and uniform scale. It is
+renderer-neutral and is the single source of truth for both rendered actors
+and queries of transformed positions or semantic anchors. Actor-only
+transformations that leave scientific geometry unchanged are not valid.
+
+The containing `LocalCartoonLayer` may transform Earth and all observer
+compositions coherently for scale-comparison scenes. Individual observer
+compositions may manage their own representation and decoration state without
+moving the shared Earth independently.
+
+Supported presentation modes may include surface placement and aligning a
+selected observer anchor with the celestial origin. These modes transform only
+the finite local cartoon; celestial geometry remains fixed.
 
 ### Multiple observers and finite sight lines
 
-An observer is an explicit scene object with a finite Cartesian position and a
-local frame derived from its position and orientation on Earth. A scene may
-contain more than one observer.
+Each observer has a finite displayed position and a local frame derived from
+its position and orientation on the single shared Earth. A scene may contain
+more than one observer, including observers at antipodal sites.
 
-A sight line is ordinary endpoint geometry connecting an observer position to
-a finite target position. Two observers viewing one star on the celestial
-sphere therefore create two segments sharing the same star endpoint.
+A finite cartoon sight line connects a named observer anchor to a target's
+displayed shell position. Two observers viewing one displayed star therefore
+create two segments sharing one finite marker endpoint. This is an explicitly
+requested cartoon construction, not the default meaning of the celestial
+sphere.
 
-Scene configurations may scale Earth, observers, horizon planes, and their
-separation together while leaving the celestial shell and star fixed. This
-supports paired illustrations of a conspicuous finite baseline and a baseline
-that is negligible relative to the target distance.
+An optional centered direction line joins the celestial origin to the same
+marker and represents the abstract direction. Scale comparisons may transform
+Earth and its observers together while leaving all celestial geometry fixed.
 
 ### Horizon planes and decorations
 
-A horizon plane is an observer-relative surface with configurable extent,
-opacity, color, edge treatment, and visibility. Its geometry is independent
-from its optional decoration.
+Each observer may define an **ideal horizon** through the celestial origin,
+perpendicular to that observer's zenith. Multiple observers may therefore have
+distinct ideal horizons and horizontal frames.
+
+A **local platform** belongs to an observer composition. At a surface site it
+may be tangent to the cartoon Earth. It is parallel to its observer's ideal
+horizon but normally has a different center; it may coincide with the ideal
+horizon only in an explicit observer-anchor-at-origin presentation.
+
+The platform has configurable extent, opacity, color, edge treatment, and
+visibility. Its geometry is independent from optional decoration.
 
 Supported concrete decorations include:
 
@@ -251,8 +322,9 @@ Supported concrete decorations include:
 - a Nainoa Thompson navigation plot supplied as validated vector geometry or
   an explicit image/texture when appropriate.
 
-These are interchangeable decorations of one horizon-plane object, not three
-independent plane implementations.
+These are interchangeable decorations of one local-platform object, not three
+independent platform implementations. Decorations do not define the ideal
+horizon.
 
 ## 9. Grid architecture
 
@@ -322,6 +394,11 @@ Absolute right ascension is shown only when the equatorial zero direction is
 scientifically defined. A diagrammatic equatorial longitude must be described
 as such when time, sidereal orientation, or epoch is absent.
 
+Coordinate curves always use centered spherical geometry and target
+directions, never displaced cartoon-observer positions. Parallax and
+convergence scenes explicitly combine the two domains; exaggerated finite
+sight lines do not arise implicitly from ordinary coordinate helpers.
+
 ## 11. Controls
 
 A `ControlManager` owns widget lifetime, layout, state synchronization, panel
@@ -390,22 +467,29 @@ scene.save("la_ligua.png")
 Advanced users retain explicit layer and control composition. Convenience
 does not conceal coordinate conventions.
 
-Concrete illustration constructors may provide paired scenes or scene
-configurations without hiding their geometry:
+Concrete illustration constructors may provide explicit local placement and
+scale comparisons without hiding their geometry:
 
 ```python
-large_earth = make_parallax_scene(
-    earth_radius=0.25,
-    sphere_radius=1.0,
-)
-small_earth = make_parallax_scene(
-    earth_radius=0.025,
-    sphere_radius=1.0,
+local = scene.local_cartoon
+local.place_on_surface(observer="navigator")
+local.set_scale(0.05)
+
+local.place_observer_anchor_at_origin(
+    observer="navigator",
+    anchor="feet",
 )
 ```
 
-Both configurations place two observers on Earth, one finite star on the
-shell, and two sight lines ending at that star.
+Representation replacement remains independent:
+
+```python
+navigator.set_representation(BoatNavigator(...))
+```
+
+Specialized convergence or parallax constructors may combine multiple
+observers, one celestial target, finite sight lines, and an optional centered
+direction line while exposing every component and convention.
 
 ## 15. Verification
 
@@ -450,9 +534,10 @@ Wenu supplies astronomical transformations and apparent coordinates. The
 adapter preserves names, visibility, style intent, and annotations, and
 reports unsupported layers explicitly.
 
-Wenu celestial inputs may be directional even though Horizon A also supports
-finite positioned targets. The adapter must make that distinction explicit
-rather than silently reinterpret existing finite scene geometry.
+Wenu celestial inputs may be directional. The adapter maps them into the
+abstract celestial domain and derives displayed shell positions only for
+rendering. It must not silently assign physical finite distance to a target
+because cartoon sight lines can terminate at its displayed marker.
 
 The adapter should live in Wenu or an optional integration module so standalone
 Wenu3D remains lightweight.
@@ -471,6 +556,14 @@ Horizon A is complete when:
 8. deterministic publication-quality export works;
 9. coordinate and transparency conventions are documented;
 10. reusable markers, segments, partial curves, and planes support the
-    documented coordinate and parallax illustrations;
-11. multiple observers and interchangeable horizon decorations are supported;
-12. a Wenu adapter can begin without restructuring the renderer.
+    documented coordinate, horizon, convergence, and parallax illustrations;
+11. celestial geometry remains independent of local-cartoon scale and
+    placement;
+12. targets distinguish direction from displayed shell position;
+13. one shared Earth supports multiple geographic observers and valid local
+    frames, including polar and antipodal sites;
+14. semantic observers, replaceable representations, and named anchors remain
+    separate responsibilities;
+15. ideal horizons and decorated local platforms remain separate concepts;
+16. model-aware local transforms keep rendered and queried geometry aligned;
+17. a Wenu adapter can begin without restructuring the renderer.
