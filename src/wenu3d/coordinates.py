@@ -4,8 +4,13 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .annotations import Annotation, AnnotationObject, AnnotationStyle
 from .arcs import SphericalArc
+from .curve_object import CurveObject
+from .curves import CurveStyle
 from .frames import SphericalFrame
+from .illustration import IllustrationLayer
+from .marker_object import MarkerObject
 from .targets import CelestialTarget
 
 
@@ -110,4 +115,130 @@ class HorizontalCoordinateGeometry:
             end_deg=self.azimuth_deg,
             radius=self.target.shell_radius,
             samples=self.samples,
+        )
+
+
+class HorizontalCoordinateIllustration(IllustrationLayer):
+    """Renderable target, altitude, azimuth, and convention labels."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        target: CelestialTarget,
+        frame: SphericalFrame,
+        samples: int = 101,
+        altitude_style: CurveStyle | None = None,
+        azimuth_style: CurveStyle | None = None,
+        annotation_style: AnnotationStyle | None = None,
+        angle_decimals: int = 1,
+        show_labels: bool = True,
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        if (
+            isinstance(angle_decimals, (bool, np.bool_))
+            or not isinstance(angle_decimals, (int, np.integer))
+            or angle_decimals < 0
+        ):
+            raise ValueError("angle_decimals must be a non-negative integer.")
+        if not isinstance(show_labels, (bool, np.bool_)):
+            raise TypeError("show_labels must be a boolean.")
+        if altitude_style is not None and not isinstance(
+            altitude_style,
+            CurveStyle,
+        ):
+            raise TypeError("altitude_style must be a CurveStyle.")
+        if azimuth_style is not None and not isinstance(
+            azimuth_style,
+            CurveStyle,
+        ):
+            raise TypeError("azimuth_style must be a CurveStyle.")
+        if annotation_style is not None and not isinstance(
+            annotation_style,
+            AnnotationStyle,
+        ):
+            raise TypeError("annotation_style must be an AnnotationStyle.")
+
+        super().__init__(name=name, visible=visible, opacity=opacity)
+        self.target = target
+        self.geometry = HorizontalCoordinateGeometry(
+            target=target,
+            frame=frame,
+            samples=samples,
+        )
+        self.altitude_style = altitude_style or CurveStyle(
+            color="#3f78b5",
+            width=4.0,
+            arrowheads="end",
+        )
+        self.azimuth_style = azimuth_style or CurveStyle(
+            color="#4f8a5b",
+            width=4.0,
+            arrowheads="end",
+        )
+        self.annotation_style = annotation_style or AnnotationStyle()
+        self.angle_decimals = int(angle_decimals)
+        self.show_labels = bool(show_labels)
+
+        self.marker_object: MarkerObject = self.add_marker(
+            f"{name}.target",
+            target.as_marker(),
+        )
+        self.altitude_curve_object: CurveObject | None = None
+        self.azimuth_curve_object: CurveObject | None = None
+        self.altitude_annotation: AnnotationObject | None = None
+        self.azimuth_annotation: AnnotationObject | None = None
+
+        altitude_arc = self.geometry.altitude_arc
+        if altitude_arc is not None:
+            self.altitude_curve_object = self.add_curve(
+                f"{name}.altitude",
+                altitude_arc.to_curve(style=self.altitude_style),
+            )
+            if self.show_labels:
+                self.altitude_annotation = self._add_angle_annotation(
+                    name=f"{name}.altitude.label",
+                    text=(
+                        "Altitude = "
+                        f"{self.geometry.altitude_deg:.{self.angle_decimals}f}°"
+                    ),
+                    curve_object=self.altitude_curve_object,
+                )
+
+        azimuth_arc = self.geometry.azimuth_arc
+        if azimuth_arc is not None:
+            self.azimuth_curve_object = self.add_curve(
+                f"{name}.azimuth",
+                azimuth_arc.to_curve(style=self.azimuth_style),
+            )
+            if self.show_labels:
+                self.azimuth_annotation = self._add_angle_annotation(
+                    name=f"{name}.azimuth.label",
+                    text=(
+                        "Azimuth (North through East) = "
+                        f"{self.geometry.azimuth_deg:.{self.angle_decimals}f}°"
+                    ),
+                    curve_object=self.azimuth_curve_object,
+                )
+
+    def _add_angle_annotation(
+        self,
+        *,
+        name: str,
+        text: str,
+        curve_object: CurveObject,
+    ) -> AnnotationObject:
+        points = curve_object.curve.as_array()
+        anchor = points[len(points) // 2]
+        offset = 0.035 * self.target.shell_radius * anchor / np.linalg.norm(anchor)
+        return self.add_annotation(
+            name,
+            Annotation(
+                text=text,
+                anchor=anchor,
+                offset=offset,
+                style=self.annotation_style,
+                associated_with=curve_object.name,
+            ),
         )

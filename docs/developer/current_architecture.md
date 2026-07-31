@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.32
+**Version:** 0.33
 **Date:** 2026-07-31
-**Status:** Description through M10.2 on `feature/interactive-grid-controls`
+**Status:** Description through M10.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -496,6 +496,16 @@ invalid curve, and Zenith/Nadir targets are rejected because their azimuth and
 vertical circle are undefined. No finite observer position participates in
 these calculations, and no geometry is added to the canonical scene.
 
+M10.3 adds `HorizontalCoordinateIllustration`, an `IllustrationLayer` that
+assembles the target marker, optional altitude and azimuth curve objects, and
+optional associated annotations while retaining direct access to every model,
+object, and style. Default curve styles distinguish altitude and azimuth and
+place an arrowhead at each arc end; callers may replace either complete
+`CurveStyle`, the common `AnnotationStyle`, label precision, or label
+visibility. Labels state `Altitude` and `Azimuth (North through East)` so the
+diagram does not conceal its convention. Zero-span geometry omits only the
+corresponding curve and label. The canonical scene remains unchanged.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -743,6 +753,11 @@ M10.2 tests verify the North-through-East convention, vertical-circle foot,
 positive and negative altitude-arc direction, altitude and azimuth endpoints,
 target-direction dependence, centered shell radius, degenerate zero spans,
 undefined polar azimuth, and target, frame, and sampling validation.
+
+M10.3 tests verify ordered component ownership, target-marker linkage,
+convention-correct label text and associations, caller-supplied styles and
+arrowheads, optional labels, independent zero-span omission, actual off-screen
+actor construction, validation, and finite radial annotation offsets.
 
 ## 13. Strengths
 
