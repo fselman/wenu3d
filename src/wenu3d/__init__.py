@@ -12,7 +12,13 @@ from .controls import (
     PanelPlacement,
 )
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
-from .curves import Meridian, Parallel
+from .curves import (
+    ArrowheadPlacement,
+    CurveStyle,
+    Meridian,
+    Parallel,
+    SampledCurve,
+)
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .layer import Layer
 from .markers import Marker, MarkerShape, MarkerStyle
@@ -37,8 +43,11 @@ __all__ = [
     "SphericalFrame",
     "horizontal_frame",
     "equatorial_frame",
+    "ArrowheadPlacement",
+    "CurveStyle",
     "Meridian",
     "Parallel",
+    "SampledCurve",
     "GridStyle",
     "GridCurveObject",
     "GridLayer",
