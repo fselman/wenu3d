@@ -95,3 +95,19 @@ class Observer:
             latitude_deg=latitude_deg,
             longitude_deg=longitude_deg,
         )
+
+    def antipode(self, name: str) -> Observer:
+        """Return a geographic observer at the opposite point on Earth."""
+        if self.latitude_deg is None or self.longitude_deg is None:
+            raise ValueError(
+                "An antipode requires a geographic observer."
+            )
+        antipodal_longitude = (
+            (self.longitude_deg + 360.0) % 360.0 - 180.0
+        )
+        return Observer.at_geographic_site(
+            name,
+            latitude_deg=-self.latitude_deg,
+            longitude_deg=antipodal_longitude,
+            earth_radius=float(np.linalg.norm(self.position)),
+        )

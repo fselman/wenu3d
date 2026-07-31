@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.24
+**Version:** 0.25
 **Date:** 2026-07-31
-**Status:** Description through M9.7.1 on `feature/interactive-grid-controls`
+**Status:** Description through M9.7.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -311,6 +311,16 @@ rebuilt. Registration may defer rendering for batch composition. The
 canonical scene still registers only its established observer, so its actor
 order and appearance remain unchanged.
 
+M9.7.2 promotes antipodal-site construction to the semantic observer model.
+A geographic `Observer` can create a named antipode at the opposite latitude
+and longitude while preserving Earth radius. Their positions and zeniths are
+opposite, East directions are opposite, and North directions coincide; both
+frames retain right-handed East-North-Zenith orientation. Their distinct
+`ObserverComposition` instances own distinct, oppositely oriented ideal
+horizons and coexist under one shared Earth and local transform. The
+canonical scene does not add the demonstration pair, so accepted output is
+unchanged.
+
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
 zenith, independent of the observer's finite cartoon position. It exposes its
@@ -617,6 +627,11 @@ synchronized actor matrices, and validation before placement state changes.
 M9.7.1 tests verify attached addition of a second observer without rebuilding
 Earth, ordered observer and actor ownership, shared transform application,
 inherited hidden-layer state, and deferred rendering.
+
+M9.7.2 tests verify semantic antipode construction, rejection for observers
+without geographic metadata, opposite positions and ENU axes, distinct
+oriented ideal horizons, and two complete compositions sharing one Earth and
+one transformed local-cartoon layer.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
