@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.30
+**Version:** 0.31
 **Date:** 2026-07-31
-**Status:** M9 completed through M9.8.3 on `feature/interactive-grid-controls`
+**Status:** Description through M10.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -30,6 +30,7 @@ that integration does not yet exist.
 | `layer.py` | Composite collection of scene objects |
 | `markers.py` | Finite marker records and styles |
 | `marker_object.py` | Lifecycle-managed marker rendering |
+| `targets.py` | Celestial directions and derived shell markers |
 | `segments.py` | Finite segment and sight-line records and styles |
 | `segment_object.py` | Lifecycle-managed segment rendering |
 | `vectors.py` | Finite solid-vector records and styles |
@@ -473,6 +474,16 @@ These primitives are public package-root exports. The finite plane and vector
 primitives are used by the canonical local composition; other illustration
 primitives remain available for later M9 and M10 assemblies.
 
+M10.1 adds the renderer-neutral `CelestialTarget`. It owns a nonempty name,
+normalized unit direction, positive illustrative shell radius, marker style,
+and visibility. `display_position` is derived as shell radius times direction,
+and `as_marker()` produces the corresponding finite `Marker` without adding a
+direction to that finite record. `at_shell_radius()` returns a new immutable
+target with the same scientific direction at a different display radius.
+Coordinate constructions will therefore consume `direction`, while explicit
+sight-line or marker rendering may consume `display_position` or the derived
+marker. No target is added to the canonical scene in this checkpoint.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -711,6 +722,10 @@ The repository does not automatically execute the canonical interactive
 example, and texture pixels are not regression-tested across platforms. The
 canonical visual run therefore remains the manual textured-Earth acceptance
 check, while the automated M9 batch test is deliberately texture-independent.
+
+M10.1 tests verify direction normalization, derived shell position, immutable
+radius replacement, marker derivation with shared style and visibility, and
+validation of target identity, direction, radius, style, and visibility.
 
 ## 13. Strengths
 
