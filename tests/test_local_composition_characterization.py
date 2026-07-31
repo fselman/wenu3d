@@ -86,8 +86,7 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
     scene = make_local_scene()
     earth = object()
     texture = object()
-    platform = object()
-    arrows = [object() for _ in range(4)]
+    arrows = [Mock() for _ in range(4)]
     observer_actors = [object() for _ in range(7)]
 
     with (
@@ -96,11 +95,7 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
             return_value=(earth, texture),
         ) as realistic_earth,
         patch(
-            "wenu3d.scene.tangent_plane",
-            return_value=platform,
-        ) as tangent_plane,
-        patch(
-            "wenu3d.scene.add_arrow",
+            "wenu3d.vector_object.add_arrow",
             side_effect=arrows,
         ) as add_arrow,
         patch(
@@ -128,12 +123,12 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
     )
     assert earth_arguments.kwargs["latitude_deg"] == -32.4524
     assert earth_arguments.kwargs["longitude_deg"] == -71.2311
-    tangent_plane.assert_called_once()
-    arguments = tangent_plane.call_args
-    np.testing.assert_allclose(arguments.args[0], platform_center)
-    np.testing.assert_allclose(arguments.args[1], east)
-    np.testing.assert_allclose(arguments.args[2], north)
-    assert arguments.kwargs == {"width": 0.4625, "depth": 0.3}
+    np.testing.assert_allclose(scene.platform.surface.center, platform_center)
+    np.testing.assert_allclose(scene.platform.surface.normal, zenith)
+    np.testing.assert_allclose(scene.platform.surface.axis_u, east)
+    np.testing.assert_allclose(scene.platform.surface.axis_v, north)
+    assert scene.platform.surface.width == pytest.approx(0.4625)
+    assert scene.platform.surface.height == pytest.approx(0.3)
 
     expected_directions = (east, -east, north, -north)
     assert add_arrow.call_count == 4
@@ -167,19 +162,24 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
             specular_power=12,
         ),
         call(
-            platform,
+            scene.platform.mesh,
             color="#d8d2c4",
             opacity=0.52,
             show_edges=True,
             edge_color="#777777",
+            line_width=1.0,
+            name="local_cartoon.platform",
+            render=False,
         ),
     ]
     local_cartoon = scene.graph.get("local_cartoon")
     assert local_cartoon.get("local_cartoon.earth") is scene.earth
+    assert local_cartoon.get("local_cartoon.platform") is scene.platform
+    assert tuple(local_cartoon.objects[2:]) == scene.cardinal_vectors
     assert scene.earth.attached_plotter is scene.plotter
-    assert scene.local_group.add.call_count == 5
+    scene.local_group.add.assert_not_called()
     assert scene.local_group.extend.call_args_list == [
-        call(scene.earth.actors),
+        call(local_cartoon.actors),
         call(observer_actors),
     ]
 

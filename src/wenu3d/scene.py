@@ -21,11 +21,15 @@ from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
 from .layer import Layer
 from .local_group import ActorScaleGroup
-from .observer import tangent_plane, add_observer
-from .rendering import add_arrow, add_tube
+from .observer import add_observer
+from .rendering import add_tube
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
 from .style import SceneStyle
+from .surface_object import SurfaceObject
+from .surfaces import PlaneSurface, SurfaceStyle
+from .vector_object import VectorObject
+from .vectors import VectorArrow, VectorStyle
 
 
 @dataclass
@@ -160,39 +164,44 @@ class CelestialScene:
             latitude_deg=self.latitude_deg,
             longitude_deg=self.longitude_deg,
         )
+        plane_center = self.earth_radius * zenith + 0.012 * zenith
+        self.platform = SurfaceObject(
+            name="local_cartoon.platform",
+            surface=PlaneSurface(
+                center=plane_center,
+                normal=zenith,
+                axis_u=east,
+                width=1.85 * self.earth_radius,
+                height=1.20 * self.earth_radius,
+                style=SurfaceStyle(
+                    color=self.style.plane_color,
+                    opacity=0.52,
+                    show_edges=True,
+                    edge_color="#777777",
+                    edge_width=1.0,
+                ),
+            ),
+        )
+        directions = (east, -east, north, -north)
+        self.cardinal_vectors = tuple(
+            VectorObject(
+                name=f"local_cartoon.cardinal.{index}",
+                vector=VectorArrow(
+                    start=plane_center,
+                    direction=direction,
+                    scale=0.28 * self.earth_radius,
+                    style=VectorStyle(color="#59645d"),
+                ),
+            )
+            for index, direction in enumerate(directions)
+        )
+
         local_cartoon = Layer(name="local_cartoon")
         local_cartoon.add(self.earth)
+        local_cartoon.add(self.platform)
+        local_cartoon.extend(self.cardinal_vectors)
         self.add(local_cartoon)
-        self.local_group.extend(self.earth.actors)
-
-        plane_center = self.earth_radius * zenith + 0.012 * zenith
-        plane = tangent_plane(
-            plane_center,
-            east,
-            north,
-            width=1.85 * self.earth_radius,
-            depth=1.20 * self.earth_radius,
-        )
-        self.local_group.add(
-            self.plotter.add_mesh(
-                plane,
-                color=self.style.plane_color,
-                opacity=0.52,
-                show_edges=True,
-                edge_color="#777777",
-            )
-        )
-
-        for direction in (east, -east, north, -north):
-            self.local_group.add(
-                add_arrow(
-                    self.plotter,
-                    plane_center,
-                    direction,
-                    scale=0.28 * self.earth_radius,
-                    color="#59645d",
-                )
-            )
+        self.local_group.extend(local_cartoon.actors)
 
         self.local_group.extend(
             add_observer(
