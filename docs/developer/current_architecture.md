@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.19
+**Version:** 0.20
 **Date:** 2026-07-31
-**Status:** Description through M9.5.5 on `feature/interactive-grid-controls`
+**Status:** Description through M9.6.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -39,6 +39,7 @@ that integration does not yet exist.
 | `surface_object.py` | Lifecycle-managed finite-surface rendering |
 | `horizons.py` | Observer-specific ideal-horizon geometry |
 | `platforms.py` | Finite local platforms and replaceable decorations |
+| `transforms.py` | Renderer-neutral local-cartoon affine transform |
 | `illustration.py` | Mixed scientific-illustration layer |
 | `grid.py` | Grid styles, curves, and layers |
 | `annotations.py` | Annotation records, objects, styles, and layers |
@@ -274,9 +275,15 @@ The canonical `LocalCartoonLayer` now contains the shared Earth followed by one
 semantic observer composition. That composition contains the finite platform,
 four cardinal vectors, and replaceable `StickFigureRepresentation` in the
 established actor order. The complete flattened actor collection is registered
-with the temporary scale group once. The scene does not yet have a model-aware
-local transform. The celestial axis remains the only direct actor created by
-the scene.
+with the temporary scale group once. The celestial axis remains the only
+direct actor created by the scene.
+
+`LocalCartoonTransform` is the renderer-neutral mathematical contract for
+M9.6. It contains a finite translation and positive uniform scale and applies
+the correct affine semantics to points, free vectors, directions, and lengths.
+It also provides inverse, ordered composition, and a homogeneous 4-by-4
+matrix. M9.6.1 is additive: this transform is not yet attached to
+`LocalCartoonLayer`, and `ActorScaleGroup` remains the canonical scale path.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -562,6 +569,11 @@ frame validation, radius validation, and compatibility with the common
 decoration interface. Neither optional decoration is selected by the canonical
 scene.
 
+M9.6.1 tests verify identity, point translation and scale, vector and direction
+semantics, transformed lengths, batched geometry, inverse round trips, ordered
+composition, homogeneous matrices, and invalid transform or query values. It
+does not alter actors or canonical scene composition.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -595,6 +607,8 @@ pixel-based texture-orientation regression test.
 7. Equatorial coordinates are diagrammatic, not time-aware.
 8. Optional platform decorations are not yet selectable through canonical
    scene construction or interactive controls.
+9. `LocalCartoonTransform` is not yet authoritative for scene rendering or
+   semantic-anchor queries.
 
 ## 15. Current boundary
 
