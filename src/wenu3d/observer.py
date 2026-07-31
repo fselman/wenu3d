@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 import numpy as np
 import pyvista as pv
@@ -136,6 +136,7 @@ class ObserverComposition(Layer):
         observer: Observer,
         representation: ObserverRepresentation,
         ideal_horizon: IdealHorizon | None = None,
+        context: Iterable[SceneObject] = (),
         visible: bool = True,
         opacity: float = 1.0,
     ) -> None:
@@ -154,7 +155,12 @@ class ObserverComposition(Layer):
                 "Ideal horizon must reference the composition observer."
             )
         self.ideal_horizon = ideal_horizon
-        self.add(representation)
+        self._context_objects: list[SceneObject] = []
+        for obj in context:
+            self._validate_context(obj)
+            self._context_objects.append(obj)
+            super().add(obj)
+        super().add(representation)
 
     @staticmethod
     def _validate_representation(
@@ -173,6 +179,54 @@ class ObserverComposition(Layer):
     @property
     def anchors(self) -> Mapping[str, np.ndarray]:
         return self.representation.anchors
+
+    @property
+    def context_objects(self) -> tuple[SceneObject, ...]:
+        return tuple(self._context_objects)
+
+    @staticmethod
+    def _validate_context(obj: SceneObject) -> None:
+        if not isinstance(obj, SceneObject):
+            raise TypeError("Observer context must contain SceneObjects.")
+        if isinstance(obj, ObserverRepresentation):
+            raise ValueError(
+                "Observer representations cannot be added as context."
+            )
+
+    def add_context(
+        self,
+        obj: SceneObject,
+        *,
+        render: bool = True,
+    ) -> SceneObject:
+        self._validate_context(obj)
+        plotter = self.attached_plotter
+        index = self.objects.index(self.representation)
+        self._context_objects.append(obj)
+        self.objects.insert(index, obj)
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
+        return obj
+
+    def extend_context(
+        self,
+        objects: Iterable[SceneObject],
+        *,
+        render: bool = True,
+    ) -> None:
+        values = tuple(objects)
+        for obj in values:
+            self._validate_context(obj)
+        plotter = self.attached_plotter
+        index = self.objects.index(self.representation)
+        self._context_objects.extend(values)
+        self.objects[index:index] = values
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
 
     def anchor(self, name: str) -> np.ndarray:
         return self.representation.anchor(name)

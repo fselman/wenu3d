@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.15
+**Version:** 0.16
 **Date:** 2026-07-31
-**Status:** Description through M9.5.1 on `feature/interactive-grid-controls`
+**Status:** Description through M9.5.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -138,11 +138,12 @@ model. The celestial axis is still created directly by `CelestialScene`.
 the graph.
 
 `ObserverComposition` associates one semantic `Observer` with one replaceable
-`ObserverRepresentation` and may contain ordinary context children through
-the existing layer API. Replacing an attached representation detaches its
-actors, retains the other children, rebuilds safely, and preserves inherited
-layer visibility. M9.4.3 connects the canonical composition to the graph
-through `LocalCartoonLayer`.
+`ObserverRepresentation` and an ordered collection of validated context
+objects. Context is built before the representation, can be added to an
+attached composition through safe rebuild, and remains intact when the
+representation is replaced. M9.4.3 connects the canonical composition to the
+graph through `LocalCartoonLayer`; M9.5.2 moves its finite platform and
+cardinal vectors into composition context.
 
 ## 5. Grid system
 
@@ -219,11 +220,12 @@ rejected, and compositions are available through ordered iteration and named
 lookup. The canonical layer currently contains one observer composition.
 
 The finite platform is a general `PlaneSurface` rendered by `SurfaceObject`.
-Its established center, East/North axes, dimensions, opacity, color, and edge
-treatment are preserved. Four `VectorObject` children render the cardinal
-directions through the existing solid PyVista-arrow path. `VectorArrow` and
-`VectorStyle` are renderer-neutral general records rather than local-specific
-types.
+It is the first context object of the canonical `ObserverComposition`. Its
+established center, East/North axes, dimensions, opacity, color, and edge
+treatment are preserved. Four following `VectorObject` context children render
+the cardinal directions through the existing solid PyVista-arrow path.
+`VectorArrow` and `VectorStyle` are renderer-neutral general records rather
+than local-specific types.
 
 Earth, platform, cardinal-vector, and observer actors are temporarily
 registered with `ActorScaleGroup` so the existing local-scale control remains
@@ -249,12 +251,13 @@ cardinal arrows, and the seven stick-figure actors belong to the raw
 member of that scale group. Centered grid geometry remains at its configured
 sphere radius when the raw local actors are scaled.
 
-The canonical scene now has first-class Earth, finite-platform, cardinal-
-vector, and semantic observer-composition objects in `local_cartoon`. Its
-stick figure is the replaceable `StickFigureRepresentation`, and the complete
-ordered actor collection is registered with the temporary scale group once.
-The scene does not yet have a model-aware local transform or ideal-horizon
-object. The celestial axis remains the only direct actor created by the scene.
+The canonical `LocalCartoonLayer` now contains the shared Earth followed by one
+semantic observer composition. That composition contains the finite platform,
+four cardinal vectors, and replaceable `StickFigureRepresentation` in the
+established actor order. The complete flattened actor collection is registered
+with the temporary scale group once. The scene does not yet have a model-aware
+local transform. The celestial axis remains the only direct actor created by
+the scene.
 
 Each `ObserverComposition` owns an `IdealHorizon`. This renderer-neutral plane
 passes through the celestial origin and is perpendicular to the observer's
@@ -520,6 +523,11 @@ surfaces, explicit surface style and visibility, composition association, and
 canonical separation from the displaced local platform. No ideal-horizon
 actor is added by default.
 
+M9.5.2 tests verify validated ordered observer context, context insertion and
+safe attached rebuild, retention across representation replacement, canonical
+ownership of the platform and cardinal vectors by the observer composition,
+unchanged flattened actor order, and one temporary scale-group registration.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -551,8 +559,8 @@ pixel-based texture-orientation regression test.
 5. Restore-default behavior has no model-level definition.
 6. Pixel output is not regression-tested across platforms.
 7. Equatorial coordinates are diagrammatic, not time-aware.
-8. Local platforms and their interchangeable decorations are not yet modeled
-   as observer-composition context.
+8. Cardinal arrows are composition context but are not yet formalized as an
+   interchangeable platform-decoration layer with inscriptions.
 
 ## 15. Current boundary
 

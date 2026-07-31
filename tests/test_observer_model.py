@@ -13,6 +13,7 @@ from wenu3d.observer import (
     StickFigureRepresentation,
     add_observer,
 )
+from wenu3d.scene_object import SceneObject
 
 
 def explicit_observer(name: str = "observer") -> Observer:
@@ -35,6 +36,16 @@ class DummyRepresentation(ObserverRepresentation):
             "instrument": self.observer.position
             + 0.1 * self.observer.frame.pole,
         }
+
+    def build(self, plotter) -> None:
+        self._prepare_build(plotter)
+        self.add_actor(self.actor)
+
+
+class DummyContext(SceneObject):
+    def __init__(self, *, name: str) -> None:
+        super().__init__(name=name)
+        self.actor = Mock()
 
     def build(self, plotter) -> None:
         self._prepare_build(plotter)
@@ -233,19 +244,19 @@ def test_observer_composition_associates_representation_and_context() -> None:
         name="observer.first",
         observer=observer,
     )
+    context = DummyContext(name="observer.context")
     composition = ObserverComposition(
         name="observer.composition",
         observer=observer,
         representation=representation,
+        context=(context,),
     )
-    context = Mock()
-    context.name = "observer.context"
-    composition.add(context)
 
     assert composition.observer is observer
     assert composition.representation is representation
     assert composition.ideal_horizon.observer is observer
-    assert composition.objects == [representation, context]
+    assert composition.context_objects == (context,)
+    assert composition.objects == [context, representation]
     np.testing.assert_allclose(composition.anchor("feet"), observer.position)
 
 
@@ -253,18 +264,19 @@ def test_observer_composition_replaces_representation_and_retains_context() -> N
     observer = explicit_observer()
     first = DummyRepresentation(name="observer.first", observer=observer)
     second = DummyRepresentation(name="observer.second", observer=observer)
+    context = DummyContext(name="observer.context")
     composition = ObserverComposition(
         name="observer.composition",
         observer=observer,
         representation=first,
+        context=(context,),
     )
-    context = Mock()
-    composition.add(context)
 
     composition.set_representation(second)
 
     assert composition.representation is second
-    assert composition.objects == [second, context]
+    assert composition.context_objects == (context,)
+    assert composition.objects == [context, second]
     np.testing.assert_allclose(
         composition.anchor("instrument"),
         observer.position + 0.1 * observer.frame.pole,
@@ -288,6 +300,57 @@ def test_attached_composition_replacement_removes_old_representation() -> None:
     plotter.remove_actor.assert_called_once_with(first.actor, render=False)
     assert composition.actors == [second.actor]
     plotter.render.assert_called_once_with()
+
+
+def test_attached_composition_adds_context_before_representation() -> None:
+    observer = explicit_observer()
+    representation = DummyRepresentation(
+        name="observer.representation",
+        observer=observer,
+    )
+    composition = ObserverComposition(
+        name="observer.composition",
+        observer=observer,
+        representation=representation,
+    )
+    plotter = Mock()
+    composition.build(plotter)
+    context = DummyContext(name="observer.context")
+
+    composition.add_context(context)
+
+    assert composition.context_objects == (context,)
+    assert composition.objects == [context, representation]
+    assert composition.actors == [context.actor, representation.actor]
+    plotter.remove_actor.assert_called_once_with(
+        representation.actor,
+        render=False,
+    )
+    plotter.render.assert_called_once_with()
+
+
+def test_composition_validates_context() -> None:
+    observer = explicit_observer()
+    representation = DummyRepresentation(
+        name="observer.representation",
+        observer=observer,
+    )
+
+    with pytest.raises(TypeError, match="SceneObjects"):
+        ObserverComposition(
+            name="observer.composition",
+            observer=observer,
+            representation=representation,
+            context=(object(),),
+        )
+
+    with pytest.raises(ValueError, match="representations"):
+        ObserverComposition(
+            name="observer.composition",
+            observer=observer,
+            representation=representation,
+            context=(representation,),
+        )
 
 
 def test_composition_rejects_representation_for_another_observer() -> None:

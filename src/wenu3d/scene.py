@@ -213,6 +213,7 @@ class CelestialScene:
             name="local_cartoon.observer",
             observer=self.observer,
             representation=self.observer_representation,
+            context=(self.platform, *self.cardinal_vectors),
         )
         self.ideal_horizon = self.observer_composition.ideal_horizon
 
@@ -220,8 +221,6 @@ class CelestialScene:
             name="local_cartoon",
             earth=self.earth,
         )
-        self.local_cartoon.add(self.platform)
-        self.local_cartoon.extend(self.cardinal_vectors)
         self.local_cartoon.add_observer(self.observer_composition)
         self.add(self.local_cartoon)
         self.local_group.extend(self.local_cartoon.actors)
