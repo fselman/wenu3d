@@ -17,6 +17,7 @@ from .grid import GridStyle, GridCurveObject, GridLayer
 from .layer import Layer
 from .markers import Marker, MarkerShape, MarkerStyle
 from .marker_object import MarkerObject
+from .segments import LineSegment, SegmentStyle, SightLine
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
 from .scene import CelestialScene, SceneGraph
@@ -45,6 +46,9 @@ __all__ = [
     "MarkerObject",
     "MarkerShape",
     "MarkerStyle",
+    "LineSegment",
+    "SegmentStyle",
+    "SightLine",
     "SceneObject",
     "CelestialShellObject",
     "CelestialScene",
