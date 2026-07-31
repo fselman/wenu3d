@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.18
+**Version:** 0.19
 **Date:** 2026-07-31
-**Status:** Description through M9.5.4 on `feature/interactive-grid-controls`
+**Status:** Description through M9.5.5 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -235,6 +235,16 @@ platform surface and uses the standard attached-layer lifecycle.
 East, West, North, and South line segments and associated inscriptions. It
 reuses `SegmentObject` and `AnnotationObject` and is not selected by the
 canonical scene, so accepted output remains unchanged.
+
+`CompassRoseDecoration` adds a conventional 16-point radial compass.
+`NainoaThompsonStarCompassDecoration` represents the documented 32
+equidistant houses of the Hawaiian star-compass directional system, starting
+at North and proceeding clockwise in 11.25-degree steps. Both use the same
+validated platform frame, line-segment, and annotation paths. The Hawaiian
+class represents directional geometry and house metadata; it is not a
+reproduction of the Polynesian Voyaging Society's protected artwork. The
+directional convention follows the Society's educational description at
+`https://worldwidevoyage.hokulea.com/education-at-sea/polynesian-navigation/the-star-compass/`.
 
 Earth, platform, cardinal-vector, and observer actors are temporarily
 registered with `ActorScaleGroup` so the existing local-scale control remains
@@ -542,6 +552,16 @@ semantic cardinal-direction ordering and lookup, component validation,
 attached decoration replacement and removal, canonical nesting, unchanged
 flattened actor order, and preserved platform/vector objects.
 
+M9.5.4 tests verify optional East, West, North, and South segment endpoints,
+inscription associations, orthogonalized platform axes, and invalid extent
+handling through the common decoration interface.
+
+M9.5.5 tests verify 16-point compass bearings, 32 equidistant Hawaiian star-
+compass houses, cardinal Hawaiian bearings, quadrant house ordering, platform-
+frame validation, radius validation, and compatibility with the common
+decoration interface. Neither optional decoration is selected by the canonical
+scene.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -573,8 +593,8 @@ pixel-based texture-orientation regression test.
 5. Restore-default behavior has no model-level definition.
 6. Pixel output is not regression-tested across platforms.
 7. Equatorial coordinates are diagrammatic, not time-aware.
-8. Cardinal arrows are an interchangeable platform decoration, but cardinal
-   inscriptions, compass rose, and navigation decoration are not yet present.
+8. Optional platform decorations are not yet selectable through canonical
+   scene construction or interactive controls.
 
 ## 15. Current boundary
 

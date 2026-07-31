@@ -39,7 +39,9 @@ from .observer_model import Observer
 from .platforms import (
     CardinalLinesDecoration,
     CardinalDirectionsDecoration,
+    CompassRoseDecoration,
     LocalPlatform,
+    NainoaThompsonStarCompassDecoration,
     PlatformDecoration,
 )
 from .segment_object import SegmentObject
@@ -94,7 +96,9 @@ __all__ = [
     "StickFigureRepresentation",
     "CardinalDirectionsDecoration",
     "CardinalLinesDecoration",
+    "CompassRoseDecoration",
     "LocalPlatform",
+    "NainoaThompsonStarCompassDecoration",
     "PlatformDecoration",
     "LineSegment",
     "SegmentObject",
