@@ -4,6 +4,7 @@ from .annotations import (
     AnnotationObject,
     AnnotationStyle,
 )
+from .arcs import SphericalArc
 from .camera import CameraState
 from .controls import (
     AnnotationControlPanel,
@@ -36,6 +37,7 @@ __all__ = [
     "AnnotationLayer",
     "AnnotationObject",
     "AnnotationStyle",
+    "SphericalArc",
     "AnnotationControlPanel",
     "CameraState",
     "ControlManager",
