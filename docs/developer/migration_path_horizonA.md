@@ -1,9 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-07-31
-**Status:** Revised post-M8 path for distinct celestial and local-cartoon
-geometry
+**Status:** M9 completed; M10 is the next active milestone
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -60,7 +59,7 @@ does not import Wenu.
 | M10 | Coordinate and parallax illustrations |
 | M11 | Horizon A release candidate |
 
-M0 through M8 are completed history at the start of version 1.2. The remaining
+M0 through M9 are completed history at the start of version 1.3. The remaining
 path distinguishes centered celestial geometry from the finite local cartoon.
 The celestial sphere, target directions, coordinate curves, observer-specific
 ideal horizons, and centered direction lines remain angular constructions.
@@ -415,7 +414,18 @@ Do not change visual output or runtime implementation.
    changing observer geometry or higher-level composition APIs.
 4. Verify that named-anchor sight-line origins follow model-aware transforms.
 
+#### M9.8 — Gate hardening and closeout
+
+1. Replace the legacy rendered-Earth orientation with a stable orthonormal
+   basis mapping that remains defined at both geographic poles.
+2. Convert geographic Earth-fixed observers explicitly into the rendered
+   Earth's display frame and verify antipodal platforms and ideal horizons.
+3. Exercise the completed two-observer composition through an off-screen
+   PyVista render and record the M9 gate as completed.
+
 ### Gate
+
+Completed by M9.8.3. The following criteria remain the regression contract:
 
 - M9.1 characterization passes without source changes;
 - one fixed Earth orientation supports La Ligua, equatorial, polar, and

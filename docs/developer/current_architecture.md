@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.29
+**Version:** 0.30
 **Date:** 2026-07-31
-**Status:** Description through M9.8.2 on `feature/interactive-grid-controls`
+**Status:** M9 completed through M9.8.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -689,9 +689,28 @@ validation, antipodal display positions, independent finite platforms,
 centered oppositely oriented ideal horizons, one shared Earth and transform,
 and lifecycle construction of both platform and point-representation actors.
 
-The repository does not yet automatically execute the canonical interactive
-example. M9.1 verifies Earth orientation analytically but does not introduce a
-pixel-based texture-orientation regression test.
+M9.8.3 closes the M9 gate with a real off-screen PyVista render of one shared
+Earth, two antipodal point representations, two independently positioned
+finite platforms, and both centered ideal-horizon display surfaces. The test
+uses a local untextured sphere so it exercises meshes, actors, transforms,
+screenshot export, and cleanup without network or texture-cache dependence.
+It verifies that the exported image is nonempty, the observers remain
+antipodal, and the ideal-horizon surfaces remain outside the transformed local
+cartoon. Together with the canonical interactive run, this satisfies the M9
+interactive-and-batch-render gate.
+
+All M9 gate criteria are now covered: the characterized canonical composition
+is preserved; Earth orientation supports ordinary, polar, and antipodal
+sites; geographic ENU frames convert explicitly to display space; semantic
+observers, representations, anchors, platforms, and horizons remain distinct;
+multiple observers share one Earth and transform; decorations are
+interchangeable; local visibility and placement are graph-managed;
+`ActorScaleGroup` is retired; and interactive and batch rendering succeed.
+
+The repository does not automatically execute the canonical interactive
+example, and texture pixels are not regression-tested across platforms. The
+canonical visual run therefore remains the manual textured-Earth acceptance
+check, while the automated M9 batch test is deliberately texture-independent.
 
 ## 13. Strengths
 
