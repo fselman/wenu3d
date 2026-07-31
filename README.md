@@ -43,13 +43,10 @@ horizontal = scene.make_horizontal_grid(
 )
 scene.add(horizontal)
 
-scene.add_grid_controls(
-    horizontal,
-    origin_x=20,
-    origin_y=650,
-)
+scene.add_grid_controls(horizontal)
 scene.add_global_controls()
 scene.show()
+scene.close()
 ```
 
 ## Adding both coordinate grids
@@ -87,14 +84,48 @@ Global controls provide:
 
 - celestial-sphere visual presence;
 - Earth/plane/observer scale.
+- canonical camera reset.
 
-Control positions are currently supplied explicitly in pixels. Automatic
-control layout is planned for Horizon A.
+`ControlManager` assigns panel positions, wraps panels into columns, avoids
+overlaps, and synchronizes widget state with the scene model.
 
-## Current annotation status
+## Annotations
 
-Annotations and grid labels are not part of the current supported API. They
-are planned as first-class scene objects in Horizon A milestone M4.
+`Annotation`, `AnnotationObject`, and `AnnotationLayer` provide first-class
+scientific callouts. Grids can create separately selectable annotation layers
+with `make_label_layer()`. Annotation controls manage layer visibility and
+text-size scaling.
+
+The canonical example demonstrates horizontal-grid labels and a Spanish
+callout for the south celestial pole.
+
+## Reproducible image export
+
+Use an off-screen scene when no interactive window is required:
+
+```python
+scene = CelestialScene(
+    latitude_deg=-32.4524,
+    longitude_deg=-71.2311,
+    location_name="La Ligua",
+    off_screen=True,
+)
+
+scene.add(scene.make_horizontal_grid())
+scene.add(scene.make_equatorial_grid())
+
+image = scene.save(
+    "la_ligua.png",
+    window_size=(1600, 1150),
+    transparent_background=False,
+)
+scene.close()
+```
+
+`CameraState` captures and reapplies the complete camera configuration.
+Repeated `render()` and `save()` calls reuse scene content without duplicating
+the title, actors, or controls. `close()` releases graph and PyVista resources
+and is safe to call more than once.
 
 ## Architecture and roadmap
 

@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.5
+**Version:** 0.6
 **Date:** 2026-07-30  
-**Status:** Description of `feature/interactive-grid-controls` through M5
+**Status:** Description of `feature/interactive-grid-controls` through M6
 
 ## 1. Purpose
 
@@ -22,6 +22,7 @@ that integration does not yet exist.
 | `geometry.py` | Vector normalization |
 | `frames.py` | Orthonormal spherical frames |
 | `curves.py` | Sampled meridians and parallels |
+| `camera.py` | Validated, renderer-neutral camera state |
 | `rendering.py` | Low-level PyVista tubes and arrows |
 | `scene_object.py` | Base drawable object and actor state |
 | `layer.py` | Composite collection of scene objects |
@@ -171,10 +172,27 @@ opacities. Other rendering and widget constants remain hard-coded.
 `show(screenshot=...)` opens the window, optionally writes a screenshot, and
 uses `auto_close=False`.
 
-The scene has one canonical camera configuration and a public
-`reset_camera()` action. There is no explicit serializable camera-state object
-and no separate API for deterministic batch rendering, headless export,
-transparent backgrounds, complete scene cleanup, or resource cleanup.
+The public rendering lifecycle is:
+
+- `render()` refreshes derived scene state and renders once;
+- `show()` uses that render path before interaction;
+- `save()` renders and writes an image without closing the scene;
+- `close()` releases scene-graph and PyVista resources exactly once.
+
+`CameraState` is an immutable, validated, renderer-neutral record containing
+position, focal point, view-up vector, view angle, parallel-projection state,
+and parallel scale. `camera_state`, `set_camera()`, and `reset_camera()` make
+views explicit and reproducible.
+
+The plotter supports interactive and off-screen construction. `save()` accepts
+an optional camera state, export-specific dimensions, and opaque RGB or
+transparent RGBA output. Repeated render and save calls reuse the existing
+scene content: the title is added once, graph layers are not rebuilt, and
+controls are synchronized without requesting an extra render.
+
+`close()` unregisters the shell camera observer, clears attached graph layers
+without rendering, and closes the plotter. Repeated cleanup is harmless, and
+the callback ignores late interaction events during teardown.
 
 Visibility, opacity, detach, remove, and clear operations honor their `render`
 argument. The current grid object path supports safe detach and rebuild without
@@ -236,6 +254,23 @@ The M5 roadmap gate is satisfied:
 - widgets reflect initial and subsequently synchronized model state;
 - the object and rendering paths remain usable without registering controls.
 
+M6 tests verify:
+
+- complete camera-state validation, capture, application, and reset;
+- idempotent render and title behavior;
+- reuse of scene content across repeated saves;
+- off-screen plotter configuration;
+- explicit output dimensions and opaque or transparent output;
+- observer removal, graph detachment, plotter closure, and repeated cleanup.
+
+The M6 roadmap gate is satisfied:
+
+- an off-screen scene exports without opening an interactive window;
+- repeated saves do not rebuild layers or duplicate the title;
+- explicit camera state reproduces a configured view;
+- configurable RGB and RGBA export is available;
+- the canonical interactive example and controls remain operational.
+
 The repository does not yet automatically execute the canonical interactive
 example or verify Earth orientation.
 
@@ -247,24 +282,28 @@ example or verify Earth orientation.
 4. Individually addressable grid curves.
 5. First-class annotations through the object model.
 6. Managed controls with layout, synchronization, and render batching.
-7. Small codebase suitable for incremental improvement.
+7. Explicit reproducible camera and rendering lifecycle.
+8. Configurable off-screen RGB and transparent RGBA export.
+9. Small codebase suitable for incremental improvement.
 
 ## 13. Liabilities
 
 1. Most scene elements bypass the graph.
 2. `CelestialScene` has too many responsibilities.
 3. Shell callback lifecycle remains embedded in `CelestialScene`.
-4. Full-scene cleanup and deterministic export are not yet available.
+4. Rendering lifecycle responsibilities have not yet moved into a separate
+   render context.
 5. Controls use fixed pixel footprints and object-specific panel classes.
 6. Restore-default behavior has no model-level definition.
-7. Full-scene rendering tests do not yet exist.
+7. Pixel output is not regression-tested across platforms.
 8. Equatorial coordinates are diagrammatic, not time-aware.
 
 ## 14. Current boundary
 
 Wenu3D currently owns diagrammatic geometry, PyVista rendering, fixed scene
 composition, first-class annotations, managed interactive controls, a
-canonical camera reset, and screenshots.
+reproducible camera, deterministic interactive/off-screen rendering,
+configurable image export, and explicit cleanup.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A
