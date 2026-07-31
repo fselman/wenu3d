@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.27
+**Version:** 0.28
 **Date:** 2026-07-31
-**Status:** Description through M9.7.4 on `feature/interactive-grid-controls`
+**Status:** Description through M9.8.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -45,7 +45,7 @@ that integration does not yet exist.
 | `annotations.py` | Annotation records, objects, styles, and layers |
 | `controls.py` | Managed grid, annotation, and global controls |
 | `shell.py` | Celestial-shell mesh, material, presence, and callback lifecycle |
-| `earth.py` | Earth orientation and lifecycle-managed Earth rendering |
+| `earth.py` | Stable Earth-fixed display orientation and Earth rendering |
 | `observer_model.py` | Renderer-neutral semantic observer record |
 | `observer.py` | Observer representations, composition, and legacy helpers |
 | `local_cartoon.py` | Shared Earth and finite observer-composition layer |
@@ -249,16 +249,17 @@ by `LocalCartoonLayer`. The existing local-scale control now updates that
 model-aware transform rather than a separate raw-actor collection.
 
 The celestial axis is still constructed directly by `CelestialScene`. Some
-local styling remains hard-coded. The legacy
-rendered-Earth orientation divides by
-`cos(latitude)` and remains singular at the geographic poles; the stable M9.2
-Earth-fixed geometry is not yet connected to Earth rendering.
+local styling remains hard-coded.
 
-The current composition is a single-observer display convention rather than
-an Earth-fixed multi-observer model. Its horizontal frame is always local
-`+x` East, `+y` North, and `+z` Zenith. Earth is rotated so that the selected
-site, including the texture's 180-degree longitude correction, lies beneath
-that fixed zenith; adding a second geographic observer is not yet modeled.
+`earth_orientation_matrix()` maps the Earth-fixed source ENU basis at the
+texture-corrected geographic site into one explicit display ENU basis. This
+stable orthonormal rotation replaces the former division by `cos(latitude)`.
+For nonpolar sites it is algebraically identical to the accepted orientation;
+at a geographic pole, explicit display North fixes the otherwise undetermined
+rotation about Zenith. `EarthObject` owns and exposes this matrix, validates
+the relation between geographic latitude, display Zenith, North, and the
+rotation axis, and supports both poles. The canonical scene supplies its
+existing horizontal North, preserving texture placement and appearance.
 
 The finite platform is centered at
 `(earth_radius + 0.012) * zenith`, parallel to the centered mathematical
@@ -663,6 +664,12 @@ M9.7.4 tests verify transformed named-anchor origins, fixed target positions,
 anchor resolution after representation replacement, multiple observers
 sharing one target, style and visibility preservation, and invalid observer or
 anchor handling.
+
+M9.8.1 tests verify the stable orientation against the accepted nonpolar
+matrix, corrected-site and north-pole placement, orthonormal right-handed
+polar matrices, inclusive geographic-pole support, inconsistent-frame
+rejection, scene propagation of display North, and unchanged Earth actor
+lifecycle.
 
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a

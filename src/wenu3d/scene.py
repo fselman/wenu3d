@@ -162,6 +162,7 @@ class CelestialScene:
             radius=self.earth_radius,
             rotation_axis=self.equatorial.pole,
             observer_zenith=zenith,
+            observer_north=north,
             latitude_deg=self.latitude_deg,
             longitude_deg=self.longitude_deg,
         )

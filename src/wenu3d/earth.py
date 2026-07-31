@@ -5,8 +5,75 @@ import numpy as np
 import pyvista as pv
 from pyvista import examples
 
+from .geography import local_enu_frame
 from .geometry import unit
 from .scene_object import SceneObject
+
+
+def earth_orientation_matrix(
+    *,
+    rotation_axis,
+    observer_zenith,
+    latitude_deg: float,
+    longitude_deg: float,
+    observer_north=None,
+    texture_longitude_correction_deg: float = 180.0,
+) -> np.ndarray:
+    """Map the Earth-fixed source basis into the illustration display basis."""
+    axis = unit(rotation_axis)
+    zenith = unit(observer_zenith)
+    latitude = float(latitude_deg)
+    longitude = float(longitude_deg)
+    correction = float(texture_longitude_correction_deg)
+    if not np.isfinite(latitude) or not -90.0 <= latitude <= 90.0:
+        raise ValueError("Earth observer latitude must be between -90 and 90.")
+    if not np.isfinite(longitude):
+        raise ValueError("Earth observer longitude must be finite.")
+    if not np.isfinite(correction):
+        raise ValueError("Texture longitude correction must be finite.")
+
+    latitude_rad = np.deg2rad(latitude)
+    cos_latitude = np.cos(latitude_rad)
+    sin_latitude = np.sin(latitude_rad)
+    if observer_north is None:
+        if abs(cos_latitude) > 1e-12:
+            north = unit(
+                (axis - sin_latitude * zenith) / cos_latitude
+            )
+        else:
+            reference = np.array([0.0, 0.0, 1.0])
+            if abs(np.dot(reference, zenith)) > 0.9:
+                reference = np.array([0.0, 1.0, 0.0])
+            north = unit(
+                reference - np.dot(reference, zenith) * zenith
+            )
+    else:
+        north_value = np.asarray(observer_north, dtype=float)
+        if north_value.shape != (3,) or not np.all(np.isfinite(north_value)):
+            raise ValueError(
+                "Observer North must contain three finite components."
+            )
+        north = unit(north_value - np.dot(north_value, zenith) * zenith)
+
+    east = unit(np.cross(north, zenith))
+    north = unit(np.cross(zenith, east))
+    expected_axis = sin_latitude * zenith + cos_latitude * north
+    if not np.allclose(axis, expected_axis, atol=1e-12):
+        raise ValueError(
+            "Rotation axis is inconsistent with the observer display frame."
+        )
+
+    source = local_enu_frame(
+        latitude,
+        longitude + correction,
+    )
+    source_basis = np.column_stack([
+        source.east,
+        source.zero,
+        source.pole,
+    ])
+    target_basis = np.column_stack([east, north, zenith])
+    return target_basis @ source_basis.T
 
 
 def orient_earth_to_observer(
@@ -16,23 +83,20 @@ def orient_earth_to_observer(
     observer_zenith,
     latitude_deg: float,
     longitude_deg: float,
+    observer_north=None,
     texture_longitude_correction_deg: float = 180.0,
 ) -> pv.PolyData:
     result = mesh.copy(deep=True)
-
-    axis = unit(rotation_axis)
-    zenith = unit(observer_zenith)
-
-    lat = np.deg2rad(latitude_deg)
-    lon = np.deg2rad(longitude_deg + texture_longitude_correction_deg)
-
-    q = unit((zenith - np.sin(lat) * axis) / np.cos(lat))
-    t = unit(np.cross(axis, q))
-
-    earth_x = np.cos(lon) * q - np.sin(lon) * t
-    earth_y = np.sin(lon) * q + np.cos(lon) * t
-
-    transform = np.column_stack([earth_x, earth_y, axis])
+    transform = earth_orientation_matrix(
+        rotation_axis=rotation_axis,
+        observer_zenith=observer_zenith,
+        observer_north=observer_north,
+        latitude_deg=latitude_deg,
+        longitude_deg=longitude_deg,
+        texture_longitude_correction_deg=(
+            texture_longitude_correction_deg
+        ),
+    )
     result.points = result.points @ transform.T
     return result
 
@@ -44,6 +108,7 @@ def realistic_earth(
     observer_zenith,
     latitude_deg: float,
     longitude_deg: float,
+    observer_north=None,
 ) -> tuple[pv.PolyData, pv.Texture]:
     earth = examples.planets.load_earth(
         radius=radius,
@@ -55,6 +120,7 @@ def realistic_earth(
         earth,
         rotation_axis=rotation_axis,
         observer_zenith=observer_zenith,
+        observer_north=observer_north,
         latitude_deg=latitude_deg,
         longitude_deg=longitude_deg,
     )
@@ -70,8 +136,9 @@ class EarthObject(SceneObject):
         default_factory=lambda: np.array([0.0, 0.0, 1.0])
     )
     observer_zenith: np.ndarray = field(
-        default_factory=lambda: np.array([0.0, 0.0, 1.0])
+        default_factory=lambda: np.array([1.0, 0.0, 0.0])
     )
+    observer_north: np.ndarray | None = None
     latitude_deg: float = 0.0
     longitude_deg: float = 0.0
     ambient: float = 0.28
@@ -88,17 +155,27 @@ class EarthObject(SceneObject):
             raise ValueError("Earth radius must be finite and greater than zero.")
         self.rotation_axis = unit(self.rotation_axis)
         self.observer_zenith = unit(self.observer_zenith)
+        if self.observer_north is not None:
+            self.observer_north = unit(self.observer_north)
         self.latitude_deg = float(self.latitude_deg)
         self.longitude_deg = float(self.longitude_deg)
-        if not np.isfinite(self.latitude_deg):
-            raise ValueError("Earth observer latitude must be finite.")
-        if not -90.0 < self.latitude_deg < 90.0:
-            raise ValueError(
-                "Legacy Earth orientation requires latitude strictly between "
-                "-90 and 90 degrees."
-            )
-        if not np.isfinite(self.longitude_deg):
-            raise ValueError("Earth observer longitude must be finite.")
+        earth_orientation_matrix(
+            rotation_axis=self.rotation_axis,
+            observer_zenith=self.observer_zenith,
+            observer_north=self.observer_north,
+            latitude_deg=self.latitude_deg,
+            longitude_deg=self.longitude_deg,
+        )
+
+    @property
+    def orientation_matrix(self) -> np.ndarray:
+        return earth_orientation_matrix(
+            rotation_axis=self.rotation_axis,
+            observer_zenith=self.observer_zenith,
+            observer_north=self.observer_north,
+            latitude_deg=self.latitude_deg,
+            longitude_deg=self.longitude_deg,
+        )
 
     @property
     def mesh(self) -> pv.PolyData | None:
@@ -114,6 +191,7 @@ class EarthObject(SceneObject):
             self.radius,
             rotation_axis=self.rotation_axis,
             observer_zenith=self.observer_zenith,
+            observer_north=self.observer_north,
             latitude_deg=self.latitude_deg,
             longitude_deg=self.longitude_deg,
         )

@@ -22,7 +22,7 @@ from .curves import (
     SampledCurve,
 )
 from .curve_object import CurveObject
-from .earth import EarthObject
+from .earth import EarthObject, earth_orientation_matrix
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .horizons import IdealHorizon
 from .illustration import IllustrationLayer
@@ -78,6 +78,7 @@ __all__ = [
     "CurveObject",
     "CurveStyle",
     "EarthObject",
+    "earth_orientation_matrix",
     "Meridian",
     "Parallel",
     "SampledCurve",

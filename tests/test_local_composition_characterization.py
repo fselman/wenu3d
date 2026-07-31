@@ -3,7 +3,7 @@ from unittest.mock import Mock, call, patch
 import numpy as np
 import pytest
 
-from wenu3d.earth import orient_earth_to_observer
+from wenu3d.earth import earth_orientation_matrix, orient_earth_to_observer
 from wenu3d.frames import equatorial_frame, horizontal_frame
 from wenu3d.observer import (
     ObserverComposition,
@@ -71,18 +71,51 @@ def test_earth_orientation_places_corrected_site_at_fixed_zenith() -> None:
     np.testing.assert_allclose(result.points[1], rotation_axis, atol=1e-12)
 
 
-def test_current_earth_orientation_is_singular_at_geographic_pole() -> None:
-    mesh = mesh_with_points(np.array([1.0, 0.0, 0.0]))
+def test_earth_orientation_is_stable_at_geographic_pole() -> None:
+    north = np.array([1.0, 0.0, 0.0])
     pole = np.array([0.0, 0.0, 1.0])
+    site = source_sphere_point(90.0, 180.0)
+    mesh = mesh_with_points(site, np.array([0.0, 0.0, 1.0]))
 
-    with pytest.raises(ValueError, match="zero vector"):
-        orient_earth_to_observer(
-            mesh,
-            rotation_axis=pole,
-            observer_zenith=pole,
-            latitude_deg=90.0,
-            longitude_deg=0.0,
-        )
+    result = orient_earth_to_observer(
+        mesh,
+        rotation_axis=pole,
+        observer_zenith=pole,
+        observer_north=north,
+        latitude_deg=90.0,
+        longitude_deg=0.0,
+    )
+
+    np.testing.assert_allclose(result.points[0], pole, atol=1e-12)
+    np.testing.assert_allclose(result.points[1], pole, atol=1e-12)
+
+
+def test_stable_orientation_matches_accepted_nonpolar_matrix() -> None:
+    latitude_deg = -32.4524
+    longitude_deg = -71.2311
+    latitude = np.deg2rad(latitude_deg)
+    longitude = np.deg2rad(longitude_deg + 180.0)
+    zenith = np.array([0.0, 0.0, 1.0])
+    axis = equatorial_frame(latitude_deg).pole
+    q = (zenith - np.sin(latitude) * axis) / np.cos(latitude)
+    q /= np.linalg.norm(q)
+    t = np.cross(axis, q)
+    t /= np.linalg.norm(t)
+    accepted = np.column_stack([
+        np.cos(longitude) * q - np.sin(longitude) * t,
+        np.sin(longitude) * q + np.cos(longitude) * t,
+        axis,
+    ])
+
+    stable = earth_orientation_matrix(
+        rotation_axis=axis,
+        observer_zenith=zenith,
+        observer_north=np.array([0.0, 1.0, 0.0]),
+        latitude_deg=latitude_deg,
+        longitude_deg=longitude_deg,
+    )
+
+    np.testing.assert_allclose(stable, accepted, atol=1e-12)
 
 
 def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
@@ -136,6 +169,10 @@ def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
     )
     assert earth_arguments.kwargs["latitude_deg"] == -32.4524
     assert earth_arguments.kwargs["longitude_deg"] == -71.2311
+    np.testing.assert_allclose(
+        earth_arguments.kwargs["observer_north"],
+        north,
+    )
     np.testing.assert_allclose(scene.platform.surface.center, platform_center)
     np.testing.assert_allclose(scene.platform.surface.normal, zenith)
     np.testing.assert_allclose(scene.platform.surface.axis_u, east)

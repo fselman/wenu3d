@@ -19,7 +19,7 @@ def make_earth() -> EarthObject:
         name="earth",
         radius=0.25,
         rotation_axis=np.array([0.0, 0.0, 1.0]),
-        observer_zenith=np.array([0.0, 0.0, 1.0]),
+        observer_zenith=np.array([1.0, 0.0, 0.0]),
         latitude_deg=0.0,
         longitude_deg=0.0,
     )

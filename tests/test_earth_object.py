@@ -3,14 +3,18 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-from wenu3d import EarthObject
+from wenu3d import EarthObject, earth_orientation_matrix
 
 
 def make_earth(**overrides) -> EarthObject:
     arguments = {
         "name": "local_cartoon.earth",
         "radius": 0.25,
-        "rotation_axis": np.array([0.0, 0.84, -0.54]),
+        "rotation_axis": np.array([
+            0.0,
+            np.cos(np.deg2rad(-32.4524)),
+            np.sin(np.deg2rad(-32.4524)),
+        ]),
         "observer_zenith": np.array([0.0, 0.0, 1.0]),
         "latitude_deg": -32.4524,
         "longitude_deg": -71.2311,
@@ -45,6 +49,7 @@ def test_earth_object_build_owns_mesh_texture_and_actor() -> None:
     )
     assert arguments.kwargs["latitude_deg"] == -32.4524
     assert arguments.kwargs["longitude_deg"] == -71.2311
+    assert arguments.kwargs["observer_north"] is None
     plotter.add_mesh.assert_called_once_with(
         mesh,
         texture=texture,
@@ -111,12 +116,40 @@ def test_earth_object_rejects_invalid_radius(radius: float) -> None:
         make_earth(radius=radius)
 
 
-@pytest.mark.parametrize("latitude_deg", [-90.0, 90.0, np.inf, np.nan])
-def test_earth_object_characterizes_legacy_latitude_limit(
+@pytest.mark.parametrize("latitude_deg", [-90.1, 90.1, np.inf, np.nan])
+def test_earth_object_rejects_invalid_latitude(
     latitude_deg: float,
 ) -> None:
     with pytest.raises(ValueError, match="latitude"):
         make_earth(latitude_deg=latitude_deg)
+
+
+@pytest.mark.parametrize("latitude_deg", [-90.0, 90.0])
+def test_earth_object_supports_geographic_poles(latitude_deg: float) -> None:
+    zenith = np.array([0.0, 0.0, np.sign(latitude_deg)])
+    earth = make_earth(
+        rotation_axis=np.array([0.0, 0.0, 1.0]),
+        observer_zenith=zenith,
+        observer_north=np.array([1.0, 0.0, 0.0]),
+        latitude_deg=latitude_deg,
+        longitude_deg=37.0,
+    )
+
+    matrix = earth.orientation_matrix
+
+    np.testing.assert_allclose(matrix @ matrix.T, np.eye(3), atol=1e-12)
+    np.testing.assert_allclose(np.linalg.det(matrix), 1.0, atol=1e-12)
+
+
+def test_orientation_matrix_rejects_inconsistent_display_frame() -> None:
+    with pytest.raises(ValueError, match="inconsistent"):
+        earth_orientation_matrix(
+            rotation_axis=(0.0, 0.0, 1.0),
+            observer_zenith=(0.0, 0.0, 1.0),
+            observer_north=(0.0, 1.0, 0.0),
+            latitude_deg=0.0,
+            longitude_deg=0.0,
+        )
 
 
 @pytest.mark.parametrize("longitude_deg", [np.inf, np.nan])
