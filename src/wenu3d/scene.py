@@ -24,6 +24,7 @@ from .local_group import ActorScaleGroup
 from .observer import tangent_plane, add_observer
 from .rendering import add_arrow, add_tube
 from .scene_object import SceneObject
+from .shell import CelestialShellObject
 from .style import SceneStyle
 
 
@@ -128,12 +129,22 @@ class CelestialScene:
         return layer
 
     def _build_base_scene(self) -> None:
-        self._add_celestial_shell()
+        self._add_celestial_shell_layer()
         self._add_earth_and_observer()
         self._add_axis()
         self.plotter.enable_lightkit()
         self.set_camera(self.canonical_camera, render=False)
-        self._install_sphere_camera_observer()
+
+    def _add_celestial_shell_layer(self) -> None:
+        """Add the celestial shell through the scene object lifecycle."""
+        self.shell = CelestialShellObject(
+            name="celestial_shell.surface",
+            radius=self.sphere_radius,
+            style=self.style,
+        )
+        layer = Layer(name="celestial_shell")
+        layer.add(self.shell)
+        self.add(layer)
 
     def _add_celestial_shell(self) -> None:
         """
@@ -538,7 +549,7 @@ class CelestialScene:
             plotter=self.plotter,
             set_sphere_presence=self._set_sphere_presence,
             set_local_scale=self._set_local_scale,
-            get_sphere_presence=lambda: self._sphere_presence,
+            get_sphere_presence=lambda: self.shell.presence,
             get_local_scale=lambda: self._local_scale,
             reset_camera=self.reset_camera,
         )
@@ -550,9 +561,7 @@ class CelestialScene:
         self.plotter.render()
 
     def _set_sphere_presence(self, value: float) -> None:
-        self._sphere_presence = float(value)
-        self._refresh_celestial_sphere()
-        self.plotter.render()
+        self.shell.set_presence(value)
 
     @property
     def camera_state(self) -> CameraState:
@@ -589,7 +598,7 @@ class CelestialScene:
             camera.disable_parallel_projection()
         camera.view_angle = state.view_angle
         camera.parallel_scale = state.parallel_scale
-        self._refresh_celestial_sphere()
+        self.shell.refresh()
         if render:
             self.plotter.render()
 
@@ -610,7 +619,7 @@ class CelestialScene:
         """Refresh derived scene state and render exactly once."""
         self._ensure_title()
         self.controls.sync(render=False)
-        self._refresh_celestial_sphere()
+        self.shell.refresh()
         self.plotter.render()
 
     def save(
@@ -652,14 +661,6 @@ class CelestialScene:
             return
 
         self._closed = True
-
-        observer_id = self._sphere_camera_observer_id
-        self._sphere_camera_observer_id = None
-        if observer_id is not None:
-            try:
-                self.plotter.iren.remove_observer(observer_id)
-            except (AttributeError, RuntimeError):
-                pass
 
         self.graph.clear(render=False)
         self.plotter.close()

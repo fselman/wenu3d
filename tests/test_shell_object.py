@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import numpy as np
 
 from wenu3d import CelestialShellObject
-from wenu3d.scene import CelestialScene
+from wenu3d.scene import CelestialScene, SceneGraph
 from wenu3d.style import SceneStyle
 
 
@@ -150,3 +150,18 @@ def test_shell_object_builds_without_camera_interactor() -> None:
 
     assert shell.attached_plotter is plotter
     assert shell.camera_observer_id is None
+
+
+def test_scene_adds_shell_as_named_layer() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.sphere_radius = 1.4
+    scene.style = SceneStyle()
+    scene.plotter = make_plotter()
+    scene.graph = SceneGraph()
+
+    scene._add_celestial_shell_layer()
+
+    layer = scene.graph.get("celestial_shell")
+    assert layer.get("celestial_shell.surface") is scene.shell
+    assert scene.shell.radius == 1.4
+    assert scene.shell.attached_plotter is scene.plotter

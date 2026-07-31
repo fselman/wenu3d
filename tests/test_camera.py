@@ -68,7 +68,7 @@ def test_camera_state_rejects_focal_point_at_camera() -> None:
 def test_scene_applies_camera_state_without_cumulative_zoom() -> None:
     scene = object.__new__(CelestialScene)
     scene.plotter = Mock()
-    scene._refresh_celestial_sphere = Mock()
+    scene.shell = Mock()
     state = make_state()
 
     scene.set_camera(state)
@@ -86,7 +86,7 @@ def test_scene_applies_camera_state_without_cumulative_zoom() -> None:
     )
     scene.plotter.camera.enable_parallel_projection.assert_not_called()
     assert scene.plotter.camera.parallel_scale == 1.5
-    assert scene._refresh_celestial_sphere.call_count == 2
+    assert scene.shell.refresh.call_count == 2
     assert scene.plotter.render.call_count == 2
     scene.plotter.camera.zoom.assert_not_called()
 

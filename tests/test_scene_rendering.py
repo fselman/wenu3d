@@ -16,10 +16,9 @@ def make_scene() -> CelestialScene:
     scene.plotter = Mock()
     scene.plotter.add_text.return_value = object()
     scene.controls = Mock()
-    scene._refresh_celestial_sphere = Mock()
+    scene.shell = Mock()
     scene._title_actor = None
     scene._closed = False
-    scene._sphere_camera_observer_id = 17
     return scene
 
 
@@ -29,7 +28,7 @@ def test_render_updates_scene_with_exactly_one_plotter_render() -> None:
     scene.render()
 
     scene.controls.sync.assert_called_once_with(render=False)
-    scene._refresh_celestial_sphere.assert_called_once_with()
+    scene.shell.refresh.assert_called_once_with()
     scene.plotter.render.assert_called_once_with()
 
 
@@ -174,10 +173,8 @@ def test_close_releases_scene_resources() -> None:
 
     scene.close()
 
-    scene.plotter.iren.remove_observer.assert_called_once_with(17)
     scene.graph.clear.assert_called_once_with(render=False)
     scene.plotter.close.assert_called_once_with()
-    assert scene._sphere_camera_observer_id is None
     assert scene._closed is True
 
 
@@ -188,30 +185,5 @@ def test_repeated_close_is_idempotent() -> None:
     scene.close()
     scene.close()
 
-    scene.plotter.iren.remove_observer.assert_called_once_with(17)
     scene.graph.clear.assert_called_once_with(render=False)
     scene.plotter.close.assert_called_once_with()
-
-
-def test_close_without_camera_observer_still_releases_resources() -> None:
-    scene = make_scene()
-    scene.graph = Mock()
-    scene._sphere_camera_observer_id = None
-
-    scene.close()
-
-    scene.plotter.iren.remove_observer.assert_not_called()
-    scene.graph.clear.assert_called_once_with(render=False)
-    scene.plotter.close.assert_called_once_with()
-
-
-def test_sphere_camera_callback_does_nothing_after_close() -> None:
-    scene = make_scene()
-    scene._install_sphere_camera_observer()
-    callback = scene._sphere_camera_callback
-    scene._closed = True
-
-    callback()
-
-    scene._refresh_celestial_sphere.assert_not_called()
-    scene.plotter.render.assert_not_called()

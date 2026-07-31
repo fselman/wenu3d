@@ -102,15 +102,13 @@ def test_global_panel_callbacks_update_scene() -> None:
     scene.controls.register_panel.side_effect = lambda panel: panel
     scene.local_group = Mock()
     scene._local_scale = 1.0
-    scene._sphere_presence = 1.0
-    scene._refresh_celestial_sphere = Mock()
+    scene.shell = Mock()
+    scene.shell.presence = 1.0
     panel = scene.add_global_controls()
 
     panel.set_sphere_presence(1.75)
 
-    assert scene._sphere_presence == 1.75
-    scene._refresh_celestial_sphere.assert_called_once_with()
-    scene.plotter.render.assert_called_once_with()
+    scene.shell.set_presence.assert_called_once_with(1.75)
 
     scene.plotter.render.reset_mock()
     panel.set_local_scale(0.5)
@@ -122,7 +120,7 @@ def test_global_panel_callbacks_update_scene() -> None:
 def test_scene_reset_camera_restores_canonical_view() -> None:
     scene = object.__new__(CelestialScene)
     scene.plotter = make_plotter()
-    scene._refresh_celestial_sphere = Mock()
+    scene.shell = Mock()
 
     scene.reset_camera()
 
@@ -136,7 +134,7 @@ def test_scene_reset_camera_restores_canonical_view() -> None:
         == scene.canonical_camera.view_angle
     )
     scene.plotter.camera.zoom.assert_not_called()
-    scene._refresh_celestial_sphere.assert_called_once_with()
+    scene.shell.refresh.assert_called_once_with()
     scene.plotter.render.assert_called_once_with()
 
 
