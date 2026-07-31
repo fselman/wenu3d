@@ -26,6 +26,7 @@ from .earth import EarthObject
 from .grid import GridStyle, GridCurveObject, GridLayer
 from .illustration import IllustrationLayer
 from .layer import Layer
+from .local_cartoon import LocalCartoonLayer
 from .markers import Marker, MarkerShape, MarkerStyle
 from .marker_object import MarkerObject
 from .observer import (
@@ -74,6 +75,7 @@ __all__ = [
     "GridLayer",
     "IllustrationLayer",
     "Layer",
+    "LocalCartoonLayer",
     "Marker",
     "MarkerObject",
     "MarkerShape",

@@ -20,8 +20,10 @@ from .earth import EarthObject
 from .frames import horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
 from .layer import Layer
+from .local_cartoon import LocalCartoonLayer
 from .local_group import ActorScaleGroup
-from .observer import add_observer
+from .observer import ObserverComposition, StickFigureRepresentation
+from .observer_model import Observer
 from .rendering import add_tube
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
@@ -196,22 +198,32 @@ class CelestialScene:
             for index, direction in enumerate(directions)
         )
 
-        local_cartoon = Layer(name="local_cartoon")
-        local_cartoon.add(self.earth)
-        local_cartoon.add(self.platform)
-        local_cartoon.extend(self.cardinal_vectors)
-        self.add(local_cartoon)
-        self.local_group.extend(local_cartoon.actors)
-
-        self.local_group.extend(
-            add_observer(
-                self.plotter,
-                base=plane_center - 0.05 * self.earth_radius * north,
-                zenith=zenith,
-                east=east,
-                height=0.92 * self.earth_radius,
-            )
+        observer_base = plane_center - 0.05 * self.earth_radius * north
+        self.observer = Observer(
+            name="canonical_observer",
+            position=observer_base,
+            frame=self.horizontal,
         )
+        self.observer_representation = StickFigureRepresentation(
+            name="local_cartoon.observer.stick_figure",
+            observer=self.observer,
+            height=0.92 * self.earth_radius,
+        )
+        self.observer_composition = ObserverComposition(
+            name="local_cartoon.observer",
+            observer=self.observer,
+            representation=self.observer_representation,
+        )
+
+        self.local_cartoon = LocalCartoonLayer(
+            name="local_cartoon",
+            earth=self.earth,
+        )
+        self.local_cartoon.add(self.platform)
+        self.local_cartoon.extend(self.cardinal_vectors)
+        self.local_cartoon.add_observer(self.observer_composition)
+        self.add(self.local_cartoon)
+        self.local_group.extend(self.local_cartoon.actors)
 
     def _add_axis(self) -> None:
         ncp = self.equatorial.pole

@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.13
+**Version:** 0.14
 **Date:** 2026-07-31
-**Status:** Description through M9.4.2 on `feature/interactive-grid-controls`
+**Status:** Description through M9.4.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -45,6 +45,7 @@ that integration does not yet exist.
 | `earth.py` | Earth orientation and lifecycle-managed Earth rendering |
 | `observer_model.py` | Renderer-neutral semantic observer record |
 | `observer.py` | Observer representations, composition, and legacy helpers |
+| `local_cartoon.py` | Shared Earth and finite observer-composition layer |
 | `local_group.py` | Scaling a raw group of actors |
 | `style.py` | Flat scene styling |
 | `scene.py` | Scene composition, camera, rendering, grids, and controls |
@@ -129,18 +130,18 @@ ancestor layer remains hidden.
 protection and lookup. It preserves insertion order, supports ordered
 iteration and length, and provides actor-safe `remove()` and `clear()`.
 
-The grid, celestial shell, Earth, finite platform, cardinal vectors,
-annotations, and M8 illustration primitives follow this object model. The
-canonical observer and celestial axis are still created directly by
-`CelestialScene`. `ActorScaleGroup` is consequently a second actor-management
-mechanism outside the graph.
+The grid, celestial shell, Earth, finite platform, cardinal vectors, observer
+composition, annotations, and M8 illustration primitives follow this object
+model. The celestial axis is still created directly by `CelestialScene`.
+`ActorScaleGroup` is consequently a second actor-management mechanism outside
+the graph.
 
-M9.3 adds an `ObserverComposition` layer outside the canonical scene path. It
-associates one semantic `Observer` with one replaceable
-`ObserverRepresentation` and may contain ordinary context children through the
-existing layer API. Replacing an attached representation detaches its actors,
-retains the other children, rebuilds safely, and preserves inherited layer
-visibility.
+`ObserverComposition` associates one semantic `Observer` with one replaceable
+`ObserverRepresentation` and may contain ordinary context children through
+the existing layer API. Replacing an attached representation detaches its
+actors, retains the other children, rebuilds safely, and preserves inherited
+layer visibility. M9.4.3 connects the canonical composition to the graph
+through `LocalCartoonLayer`.
 
 ## 5. Grid system
 
@@ -209,7 +210,12 @@ callback behavior. The shell layer is cleared with the rest of the
 
 `EarthObject` owns the current oriented Earth mesh, globe texture, material
 parameters, PyVista actor, and standard rebuild/detach lifecycle. It is the
-first child of the named `local_cartoon` graph layer.
+first child of the named `LocalCartoonLayer`.
+
+`LocalCartoonLayer` owns that one shared Earth and registers observer
+compositions by semantic observer name. Duplicate observer identities are
+rejected, and compositions are available through ordered iteration and named
+lookup. The canonical layer currently contains one observer composition.
 
 The finite platform is a general `PlaneSurface` rendered by `SurfaceObject`.
 Its established center, East/North axes, dimensions, opacity, color, and edge
@@ -218,12 +224,12 @@ directions through the existing solid PyVista-arrow path. `VectorArrow` and
 `VectorStyle` are renderer-neutral general records rather than local-specific
 types.
 
-Earth, platform, and cardinal-vector actors are temporarily registered with
-`ActorScaleGroup` so the existing local-scale control remains unchanged until
-M9.6 replaces that parallel mechanism.
+Earth, platform, cardinal-vector, and observer actors are temporarily
+registered with `ActorScaleGroup` so the existing local-scale control remains
+unchanged until M9.6 replaces that parallel mechanism.
 
-The observer and celestial axis are still constructed directly by
-`CelestialScene`. Some local styling remains hard-coded. The legacy
+The celestial axis is still constructed directly by `CelestialScene`. Some
+local styling remains hard-coded. The legacy
 rendered-Earth orientation divides by
 `cos(latitude)` and remains singular at the geographic poles; the stable M9.2
 Earth-fixed geometry is not yet connected to Earth rendering.
@@ -242,10 +248,12 @@ cardinal arrows, and the seven stick-figure actors belong to the raw
 member of that scale group. Centered grid geometry remains at its configured
 sphere radius when the raw local actors are scaled.
 
-The canonical scene now has first-class Earth, finite-platform, and cardinal-
-vector objects in `local_cartoon`. It does not yet use the semantic observer
-composition, and it has no model-aware local transform or ideal-horizon
-object. The remaining raw local actors migrate in later M9.4 checkpoints.
+The canonical scene now has first-class Earth, finite-platform, cardinal-
+vector, and semantic observer-composition objects in `local_cartoon`. Its
+stick figure is the replaceable `StickFigureRepresentation`, and the complete
+ordered actor collection is registered with the temporary scale group once.
+The scene does not yet have a model-aware local transform or ideal-horizon
+object. The celestial axis remains the only direct actor created by the scene.
 
 `Observer` is renderer-neutral and owns a stable identity, an immutable finite
 position, a validated local `SphericalFrame`, and optional geographic metadata.
@@ -347,8 +355,9 @@ retains insertion order and the ordinary layer lifecycle. A complete
 scientific explanation can therefore be hidden, rebuilt, detached, or removed
 as a unit without overwriting each child's own visibility selection.
 
-These primitives are public package-root exports. They are not yet used by
-the canonical local Earth/observer composition; that migration begins in M9.
+These primitives are public package-root exports. The finite plane and vector
+primitives are used by the canonical local composition; other illustration
+primitives remain available for later M9 and M10 assemblies.
 
 ## 12. Verification state
 
@@ -483,6 +492,13 @@ platform geometry and material preservation, graph ownership of the platform
 and four cardinal vectors, and temporary participation in legacy local
 scaling. The semantic observer and celestial axis remain unmigrated.
 
+M9.4.3 tests verify one shared Earth per `LocalCartoonLayer`, ordered and named
+observer-composition registration, duplicate observer rejection, canonical
+semantic-observer geometry, graph ownership of the stick-figure
+representation, preserved actor order, and one complete registration with the
+temporary local scale group. The legacy `add_observer()` wrapper remains for
+backward compatibility, but the canonical scene no longer uses it.
+
 The repository does not yet automatically execute the canonical interactive
 example. M9.1 verifies Earth orientation analytically but does not introduce a
 pixel-based texture-orientation regression test.
@@ -506,7 +522,7 @@ pixel-based texture-orientation regression test.
 
 ## 14. Liabilities
 
-1. The observer and celestial axis still bypass the graph.
+1. The celestial axis still bypasses the graph.
 2. `CelestialScene` has too many responsibilities.
 3. Rendering lifecycle responsibilities have not yet moved into a separate
    render context.
@@ -526,8 +542,8 @@ sampled-curve, spherical-arc, and rectangular-plane records; their PyVista
 scene objects; mixed illustration layers; and spherical Earth-fixed geographic
 positions and local ENU frames. It also owns a renderer-neutral observer model,
 semantic representation anchors, the preserved stick-figure representation,
-and an observer composition layer that is not yet integrated into the
-canonical scene.
+and a local-cartoon layer integrating one shared Earth with named observer
+compositions in the canonical scene.
 
 It does not own or consume a Wenu `Observer`, `CelestialSphere`, Wenu layers,
 catalogs, apparent positions, or renderer-neutral Wenu primitives. Horizon A

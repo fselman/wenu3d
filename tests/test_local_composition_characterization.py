@@ -5,7 +5,11 @@ import pytest
 
 from wenu3d.earth import orient_earth_to_observer
 from wenu3d.frames import equatorial_frame, horizontal_frame
-from wenu3d.observer import add_observer
+from wenu3d.observer import (
+    ObserverComposition,
+    StickFigureRepresentation,
+    add_observer,
+)
 from wenu3d.scene import CelestialScene, SceneGraph
 
 
@@ -82,12 +86,13 @@ def test_current_earth_orientation_is_singular_at_geographic_pole() -> None:
         )
 
 
-def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
+def test_current_local_composition_uses_fixed_frame_and_graph_objects() -> None:
     scene = make_local_scene()
     earth = object()
     texture = object()
+    head_mesh = object()
     arrows = [Mock() for _ in range(4)]
-    observer_actors = [object() for _ in range(7)]
+    observer_actors = [Mock() for _ in range(7)]
 
     with (
         patch(
@@ -99,10 +104,19 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
             side_effect=arrows,
         ) as add_arrow,
         patch(
-            "wenu3d.scene.add_observer",
-            return_value=observer_actors,
-        ) as add_observer,
+            "wenu3d.observer.add_tube",
+            side_effect=observer_actors[:6],
+        ),
+        patch(
+            "wenu3d.observer.pv.Sphere",
+            return_value=head_mesh,
+        ),
     ):
+        scene.plotter.add_mesh.side_effect = [
+            Mock(),
+            Mock(),
+            observer_actors[6],
+        ]
         scene._add_earth_and_observer()
 
     zenith = np.array([0.0, 0.0, 1.0])
@@ -141,15 +155,20 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
         np.testing.assert_allclose(actual.args[2], direction)
         assert actual.kwargs == {"scale": 0.07, "color": "#59645d"}
 
-    add_observer.assert_called_once()
-    observer_arguments = add_observer.call_args
+    assert scene.observer.position.shape == (3,)
     np.testing.assert_allclose(
-        observer_arguments.kwargs["base"],
+        scene.observer.position,
         platform_center - 0.0125 * north,
     )
-    np.testing.assert_allclose(observer_arguments.kwargs["zenith"], zenith)
-    np.testing.assert_allclose(observer_arguments.kwargs["east"], east)
-    assert observer_arguments.kwargs["height"] == pytest.approx(0.23)
+    np.testing.assert_allclose(scene.observer.frame.pole, zenith)
+    np.testing.assert_allclose(scene.observer.frame.east, east)
+    assert isinstance(scene.observer_composition, ObserverComposition)
+    assert isinstance(
+        scene.observer_representation,
+        StickFigureRepresentation,
+    )
+    assert scene.observer_representation.observer is scene.observer
+    assert scene.observer_representation.height == pytest.approx(0.23)
 
     assert scene.plotter.add_mesh.call_args_list == [
         call(
@@ -171,17 +190,29 @@ def test_current_local_composition_uses_fixed_frame_and_raw_actors() -> None:
             name="local_cartoon.platform",
             render=False,
         ),
+        call(
+            head_mesh,
+            color="#d4af8a",
+            smooth_shading=True,
+        ),
     ]
-    local_cartoon = scene.graph.get("local_cartoon")
+    local_cartoon = scene.local_cartoon
+    assert scene.graph.get("local_cartoon") is local_cartoon
     assert local_cartoon.get("local_cartoon.earth") is scene.earth
     assert local_cartoon.get("local_cartoon.platform") is scene.platform
-    assert tuple(local_cartoon.objects[2:]) == scene.cardinal_vectors
+    assert tuple(local_cartoon.objects[2:6]) == scene.cardinal_vectors
+    assert local_cartoon.objects[6] is scene.observer_composition
+    assert local_cartoon.observer_compositions == (
+        scene.observer_composition,
+    )
+    assert (
+        local_cartoon.get_observer("canonical_observer")
+        is scene.observer_composition
+    )
     assert scene.earth.attached_plotter is scene.plotter
     scene.local_group.add.assert_not_called()
-    assert scene.local_group.extend.call_args_list == [
-        call(local_cartoon.actors),
-        call(observer_actors),
-    ]
+    assert scene.local_group.extend.call_args_list == [call(local_cartoon.actors)]
+    assert local_cartoon.actors[-7:] == observer_actors
 
 
 def test_current_stick_figure_builds_seven_raw_actors() -> None:
