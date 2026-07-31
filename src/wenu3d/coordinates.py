@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 import numpy as np
 
@@ -12,6 +13,9 @@ from .frames import SphericalFrame
 from .illustration import IllustrationLayer
 from .marker_object import MarkerObject
 from .targets import CelestialTarget
+
+
+EquatorialLongitudeKind = Literal["diagrammatic", "right_ascension"]
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,136 @@ class HorizontalCoordinateGeometry:
             self.frame,
             start_deg=0.0,
             end_deg=self.azimuth_deg,
+            radius=self.target.shell_radius,
+            samples=self.samples,
+        )
+
+
+@dataclass(frozen=True)
+class EquatorialCoordinateGeometry:
+    """Centered declination and equatorial-longitude target geometry."""
+
+    target: CelestialTarget
+    frame: SphericalFrame
+    longitude_kind: EquatorialLongitudeKind = "diagrammatic"
+    right_ascension_origin: str | None = None
+    samples: int = 101
+    _longitude_deg: float = field(init=False, repr=False)
+    _declination_deg: float = field(init=False, repr=False)
+    _foot_direction: tuple[float, float, float] = field(
+        init=False,
+        repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.target, CelestialTarget):
+            raise TypeError("Equatorial target must be a CelestialTarget.")
+        if not isinstance(self.frame, SphericalFrame):
+            raise TypeError("Equatorial frame must be a SphericalFrame.")
+        if self.longitude_kind not in ("diagrammatic", "right_ascension"):
+            raise ValueError(
+                "longitude_kind must be 'diagrammatic' or 'right_ascension'."
+            )
+        origin = self.right_ascension_origin
+        if self.longitude_kind == "right_ascension":
+            if not isinstance(origin, str) or not origin.strip():
+                raise ValueError(
+                    "Right ascension requires a scientific origin description."
+                )
+            origin = origin.strip()
+        elif origin is not None:
+            raise ValueError(
+                "right_ascension_origin requires right_ascension longitude."
+            )
+        if (
+            isinstance(self.samples, (bool, np.bool_))
+            or not isinstance(self.samples, (int, np.integer))
+            or self.samples < 2
+        ):
+            raise ValueError(
+                "Equatorial samples must be an integer greater than or "
+                "equal to 2."
+            )
+
+        direction = np.asarray(self.target.direction)
+        zero_component = float(direction @ self.frame.zero)
+        east_component = float(direction @ self.frame.east)
+        equatorial_norm = float(np.hypot(zero_component, east_component))
+        if equatorial_norm < 1e-12:
+            raise ValueError(
+                "Equatorial longitude is undefined at a celestial pole."
+            )
+        longitude = np.rad2deg(np.arctan2(east_component, zero_component))
+        longitude %= 360.0
+        declination = np.rad2deg(
+            np.arcsin(np.clip(direction @ self.frame.pole, -1.0, 1.0))
+        )
+        foot = (
+            zero_component * self.frame.zero
+            + east_component * self.frame.east
+        ) / equatorial_norm
+
+        object.__setattr__(self, "samples", int(self.samples))
+        object.__setattr__(self, "right_ascension_origin", origin)
+        object.__setattr__(self, "_longitude_deg", float(longitude))
+        object.__setattr__(self, "_declination_deg", float(declination))
+        object.__setattr__(
+            self,
+            "_foot_direction",
+            tuple(float(component) for component in foot),
+        )
+
+    @property
+    def longitude_deg(self) -> float:
+        return self._longitude_deg
+
+    @property
+    def declination_deg(self) -> float:
+        return self._declination_deg
+
+    @property
+    def longitude_label(self) -> str:
+        if self.longitude_kind == "right_ascension":
+            return f"Right ascension (origin: {self.right_ascension_origin})"
+        return "Diagrammatic equatorial longitude"
+
+    @property
+    def right_ascension_hours(self) -> float | None:
+        if self.longitude_kind != "right_ascension":
+            return None
+        return self.longitude_deg / 15.0
+
+    @property
+    def hour_circle_foot(self) -> np.ndarray:
+        return self.target.shell_radius * np.asarray(self._foot_direction)
+
+    @property
+    def declination_arc(self) -> SphericalArc | None:
+        if abs(self.declination_deg) < 1e-12:
+            return None
+        foot = np.asarray(self._foot_direction)
+        hour_circle_frame = SphericalFrame(
+            name=f"{self.target.name}.hour_circle",
+            pole=np.cross(foot, self.frame.pole),
+            zero=foot,
+            east=self.frame.pole,
+        )
+        return SphericalArc.great_circle(
+            hour_circle_frame,
+            start_deg=0.0,
+            end_deg=self.declination_deg,
+            radius=self.target.shell_radius,
+            samples=self.samples,
+        )
+
+    @property
+    def longitude_arc(self) -> SphericalArc | None:
+        if self.longitude_deg < 1e-12 or 360.0 - self.longitude_deg < 1e-12:
+            return None
+        return SphericalArc.great_circle(
+            self.frame,
+            start_deg=0.0,
+            end_deg=self.longitude_deg,
             radius=self.target.shell_radius,
             samples=self.samples,
         )

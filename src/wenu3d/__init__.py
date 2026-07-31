@@ -13,6 +13,8 @@ from .controls import (
     PanelPlacement,
 )
 from .coordinates import (
+    EquatorialCoordinateGeometry,
+    EquatorialLongitudeKind,
     HorizontalCoordinateGeometry,
     HorizontalCoordinateIllustration,
 )
@@ -71,6 +73,8 @@ __all__ = [
     "AnnotationControlPanel",
     "CameraState",
     "ControlManager",
+    "EquatorialCoordinateGeometry",
+    "EquatorialLongitudeKind",
     "HorizontalCoordinateGeometry",
     "HorizontalCoordinateIllustration",
     "GlobalControlPanel",

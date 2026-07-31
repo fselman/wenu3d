@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.33
+**Version:** 0.34
 **Date:** 2026-07-31
-**Status:** Description through M10.3 on `feature/interactive-grid-controls`
+**Status:** Description through M10.4 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -506,6 +506,17 @@ visibility. Labels state `Altitude` and `Azimuth (North through East)` so the
 diagram does not conceal its convention. Zero-span geometry omits only the
 corresponding curve and label. The canonical scene remains unchanged.
 
+M10.4 adds `EquatorialCoordinateGeometry`. It derives declination,
+equatorial longitude, the hour-circle foot on the centered equator, a
+declination arc from the equator to the target, and a longitude arc from the
+frame's explicit zero direction to the hour circle. The caller must select
+either `diagrammatic` longitude or `right_ascension`. Right ascension requires
+a nonempty description of its scientifically defined origin and exposes hours;
+diagrammatic longitude explicitly reports no right-ascension value. Polar
+targets are rejected because their longitude and hour circle are undefined,
+and zero-span arcs are omitted independently. No geometry is added to the
+canonical scene.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -758,6 +769,12 @@ M10.3 tests verify ordered component ownership, target-marker linkage,
 convention-correct label text and associations, caller-supplied styles and
 arrowheads, optional labels, independent zero-span omission, actual off-screen
 actor construction, validation, and finite radial annotation offsets.
+
+M10.4 tests verify longitude and declination recovery, equatorial and target
+endpoints, positive and negative declination direction, diagrammatic-longitude
+naming, right-ascension hours and required origin description, independent
+zero-span omission, polar rejection, and convention, target, frame, and
+sampling validation.
 
 ## 13. Strengths
 
