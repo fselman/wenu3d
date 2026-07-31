@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.35
+**Version:** 0.36
 **Date:** 2026-07-31
-**Status:** Description through M10.5 on `feature/interactive-grid-controls`
+**Status:** Description through M10.6 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -32,6 +32,7 @@ that integration does not yet exist.
 | `markers.py` | Finite marker records and styles |
 | `marker_object.py` | Lifecycle-managed marker rendering |
 | `targets.py` | Celestial directions and derived shell markers |
+| `target_lines.py` | Explicit centered and observer-to-target lines |
 | `segments.py` | Finite segment and sight-line records and styles |
 | `segment_object.py` | Lifecycle-managed segment rendering |
 | `vectors.py` | Finite solid-vector records and styles |
@@ -527,6 +528,18 @@ control of both `CurveStyle` records, the common `AnnotationStyle`, precision,
 and label visibility. Zero-span components are omitted independently, and the
 canonical scene remains unchanged.
 
+M10.6 adds `TargetLineIllustration`, an explicitly requested composition that
+keeps convergence-like finite lines out of ordinary coordinate helpers. It
+owns the target's derived marker, an optional centered direction segment from
+the celestial origin, and ordered finite sight lines snapshot from named
+anchors through `LocalCartoonLayer`. Every line ends at the same target display
+position. Centered geometry and the marker remain outside the local transform;
+each sight-line origin reflects the transform when the illustration is
+constructed. Reconstructing the illustration after a transform produces a new
+explicit snapshot. Direction and sight-line styles remain separately
+configurable, all objects are directly accessible, and the canonical scene is
+unchanged.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -790,6 +803,12 @@ M10.5 tests verify ordered ownership, target-marker linkage, diagrammatic and
 right-ascension label units and conventions, associations, caller-supplied
 styles and arrowheads, optional labels, independent zero-span omission,
 off-screen actor construction, validation, and finite radial label offsets.
+
+M10.6 tests verify ordered ownership, one shared marker endpoint, a direction
+segment originating exactly at the celestial origin, transformed named-anchor
+resolution, optional centered direction, explicit transform snapshots,
+role-specific styles, off-screen marker and segment construction, composition
+validation, and invalid or unknown observer-anchor rejection.
 
 ## 13. Strengths
 

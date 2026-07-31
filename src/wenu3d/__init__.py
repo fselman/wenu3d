@@ -57,6 +57,7 @@ from .segments import LineSegment, SegmentStyle, SightLine
 from .surfaces import PlaneSurface, SurfaceStyle
 from .surface_object import SurfaceObject
 from .targets import CelestialTarget
+from .target_lines import TargetLineIllustration
 from .transforms import LocalCartoonTransform
 from .vector_object import VectorObject
 from .vectors import VectorArrow, VectorStyle
@@ -125,6 +126,7 @@ __all__ = [
     "SurfaceStyle",
     "SurfaceObject",
     "CelestialTarget",
+    "TargetLineIllustration",
     "LocalCartoonTransform",
     "VectorArrow",
     "VectorObject",
