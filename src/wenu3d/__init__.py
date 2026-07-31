@@ -6,6 +6,11 @@ from .annotations import (
 )
 from .arcs import SphericalArc
 from .camera import CameraState
+from .comparisons import (
+    LocalScaleComparison,
+    ScaleComparisonMode,
+    ScaleComparisonState,
+)
 from .controls import (
     AnnotationControlPanel,
     ControlManager,
@@ -74,6 +79,9 @@ __all__ = [
     "SphericalArc",
     "AnnotationControlPanel",
     "CameraState",
+    "LocalScaleComparison",
+    "ScaleComparisonMode",
+    "ScaleComparisonState",
     "ControlManager",
     "EquatorialCoordinateGeometry",
     "EquatorialCoordinateIllustration",

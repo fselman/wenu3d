@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.36
+**Version:** 0.37
 **Date:** 2026-07-31
-**Status:** Description through M10.6 on `feature/interactive-grid-controls`
+**Status:** Description through M10.7 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -26,6 +26,7 @@ that integration does not yet exist.
 | `arcs.py` | Renderer-neutral partial great-circle and small-circle geometry |
 | `coordinates.py` | Centered coordinate-illustration geometry |
 | `camera.py` | Validated, renderer-neutral camera state |
+| `comparisons.py` | Explicit local-cartoon scale-comparison states |
 | `rendering.py` | Low-level PyVista tubes and arrows |
 | `scene_object.py` | Base drawable object and actor state |
 | `layer.py` | Composite collection of scene objects |
@@ -540,6 +541,18 @@ explicit snapshot. Direction and sight-line styles remain separately
 configurable, all objects are directly accessible, and the canonical scene is
 unchanged.
 
+M10.7 adds `LocalScaleComparison` and immutable `ScaleComparisonState`
+records. One comparison defines ordered `surface`, `small_cartoon`, and
+`observer_at_origin` states as complete `LocalCartoonTransform` values rather
+than relative mutations. Surface and small-cartoon states use explicit scales
+at zero translation; observer-at-origin uses its own explicit scale and the
+translation that maps a selected named anchor exactly to the celestial origin.
+Applying a state updates only the authoritative `LocalCartoonLayer` transform.
+Target direction and marker position, centered coordinate arcs, and ideal
+horizons are not dependencies of the controller and remain fixed. State
+descriptions make the intended directional-limit comparison explicit, and the
+canonical scene remains unchanged.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -809,6 +822,11 @@ segment originating exactly at the celestial origin, transformed named-anchor
 resolution, optional centered direction, explicit transform snapshots,
 role-specific styles, off-screen marker and segment construction, composition
 validation, and invalid or unknown observer-anchor rejection.
+
+M10.7 tests verify ordered documented states, explicit reproducible transforms,
+exact anchor alignment, authoritative local-transform updates, fixed target,
+coordinate-curve, and horizon geometry, attached actor matrices, deferred
+rendering, validation, and rejection of unknown modes without state change.
 
 ## 13. Strengths
 
