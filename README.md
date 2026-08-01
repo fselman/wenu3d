@@ -129,6 +129,10 @@ and is safe to call more than once.
 
 ## Architecture and roadmap
 
+The [API stability guide](docs/api_stability.md) distinguishes stable
+package-root imports from advanced module APIs and internal implementation
+details.
+
 Developer documentation is in `docs/developer/`:
 
 - `current_architecture.md`;

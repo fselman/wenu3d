@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.39
+**Version:** 0.40
 **Date:** 2026-07-31
-**Status:** M10 completed through M10.9 on `feature/interactive-grid-controls`
+**Status:** M11 product hardening started through M11.1 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -58,6 +58,12 @@ that integration does not yet exist.
 
 `examples/la_ligua_interactive_grids.py` is the canonical example and uses the
 current API.
+
+`docs/api_stability.md` classifies interfaces for the Horizon A release
+candidate. Names declared by package-root `wenu3d.__all__` are the stable
+user-facing API. Publicly named objects imported from their defining modules
+but omitted from `__all__` are advanced APIs. Underscore-prefixed names and
+undocumented renderer bookkeeping are internal implementation details.
 
 ## 3. Scientific geometry
 
@@ -871,6 +877,10 @@ finite marker endpoint, transformed baseline vector and length, finite
 convergence angle, convergence reduction with local scale, unchanged target
 direction and marker, configurable note and line styles, optional note,
 off-screen construction, multiple-observer requirements, and pair validation.
+
+M11.1 tests verify that the stable package-root API is explicit, unique,
+resolvable, free of private names, contains representative Horizon A product
+types, and does not accidentally promote documented advanced renderer helpers.
 
 ## 13. Strengths
 
