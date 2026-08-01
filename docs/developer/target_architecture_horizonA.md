@@ -1,9 +1,8 @@
 # Wenu3D Target Architecture — Horizon A
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-07-31
-**Status:** Revised post-M8 target with distinct celestial and local-cartoon
-geometry domains
+**Status:** Completed by the M11.6 Horizon A release-candidate gate
 
 ## 1. Purpose
 

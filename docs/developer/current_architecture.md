@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.44
+**Version:** 0.45
 **Date:** 2026-07-31
-**Status:** M11 product hardening in progress through M11.5 on `feature/interactive-grid-controls`
+**Status:** Horizon A release candidate completed through M11.6 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -907,6 +907,11 @@ illustrations accept those styles by scientific role; and `SceneStyle` remains
 the flat construction-time theme for the one canonical scene consumer. No new
 aggregate style is introduced because the existing boundaries already remove
 repeated scalar parameters without creating a release-candidate API migration.
+
+M11.6 closes Horizon A. `docs/horizonA_release.md` maps all 17 target
+completion criteria to repository evidence and defines the repository,
+distribution-build, installed-wheel, clean-environment, canonical-visual, and
+final-status gates. Horizon B Wenu integration remains separately planned.
 
 ## 13. Strengths
 

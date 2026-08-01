@@ -3,6 +3,10 @@
 Standalone PyVista toolkit for geometrically correct 3D astronomical
 illustrations.
 
+Version 0.1.0 is the Horizon A release candidate. Its completion evidence and
+clean-environment gate are recorded in
+[`docs/horizonA_release.md`](docs/horizonA_release.md).
+
 Wenu3D is intended for teaching, publications, and outreach. It is not an
 interactive planetarium.
 

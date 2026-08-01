@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.9
+**Version:** 2.0
 **Date:** 2026-07-31
-**Status:** M10 completed; M11 product hardening in progress through M11.5
+**Status:** Horizon A completed through the M11.6 release-candidate gate
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -544,7 +544,7 @@ Produce a standalone Horizon A release candidate.
   M11.3);
 - verify packaging, supported Python, errors, and absence of stale modules
   (completed by M11.4);
-- run the full gate in a clean environment.
+- run the full gate in a clean environment (completed by M11.6).
 
 ### Completed checkpoints
 
@@ -565,6 +565,10 @@ Produce a standalone Horizon A release candidate.
 - **M11.5 — Style organization:** scene, primitive, and composite style
   boundaries are documented; the review finds no additional aggregate that
   improves the release candidate without unnecessary compatibility cost.
+- **M11.6 — Horizon A release candidate:** all 17 completion criteria are
+  mapped to repository evidence; source and wheel builds, installed-module
+  imports, the full suite, canonical visual review, and clean-environment
+  verification form the final gate.
 
 ### Gate
 
