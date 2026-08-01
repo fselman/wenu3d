@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.38
+**Version:** 0.39
 **Date:** 2026-07-31
-**Status:** Description through M10.8 on `feature/interactive-grid-controls`
+**Status:** M10 completed through M10.9 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -564,6 +564,27 @@ The automated smoke scene substitutes a local untextured sphere for Earth so
 the export contract is independent of network and texture-cache state. The
 canonical scene remains unchanged.
 
+M10.9 adds `ParallaxIllustration`, an explicit specialization of
+`TargetLineIllustration` requiring at least two named observer anchors. It
+retains the shared displayed target endpoint, optional centered direction,
+finite sight lines, and direct component/style access, while adding transformed
+baseline vectors and lengths plus the angle between displayed sight lines.
+Its optional associated note states that convergence is illustrative and shell
+radius is not physical distance. Comparing compositions reconstructed at
+different local scales makes convergence conspicuous or negligible without
+changing target direction or displayed marker position. The canonical scene
+remains unchanged.
+
+All M10 gate criteria are now covered: horizontal and equatorial endpoints are
+verified; labels state their actual conventions; coordinate curves and ideal
+horizons remain centered; target direction and marker position remain linked
+but distinct; finite sight lines share the marker endpoint and resolve named
+transformed anchors; centered direction lines begin at the celestial origin;
+local scale and placement states are explicit; all three comparison states
+export deterministically; parallax is an explicitly requested composition;
+and convenience objects expose their models, primitives, annotations, and
+styles directly.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -844,6 +865,12 @@ local presentations, exact original-transform restoration, repeated pixel
 determinism within one rendering environment, fixed target and coordinate
 meshes, selected transparent RGBA output, and attachment, mode, window, and
 background-option validation.
+
+M10.9 tests verify explicit component ownership and interpretation note, shared
+finite marker endpoint, transformed baseline vector and length, finite
+convergence angle, convergence reduction with local scale, unchanged target
+direction and marker, configurable note and line styles, optional note,
+off-screen construction, multiple-observer requirements, and pair validation.
 
 ## 13. Strengths
 

@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.3
+**Version:** 1.4
 **Date:** 2026-07-31
-**Status:** M9 completed; M10 is the next active milestone
+**Status:** M10 completed; M11 is the next active milestone
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -59,7 +59,7 @@ does not import Wenu.
 | M10 | Coordinate and parallax illustrations |
 | M11 | Horizon A release candidate |
 
-M0 through M9 are completed history at the start of version 1.3. The remaining
+M0 through M10 are completed history at the start of version 1.4. The remaining
 path distinguishes centered celestial geometry from the finite local cartoon.
 The celestial sphere, target directions, coordinate curves, observer-specific
 ideal horizons, and centered direction lines remain angular constructions.
@@ -487,7 +487,21 @@ geometry without confusing their meanings.
 11. Preserve direct access to every primitive, observer, representation,
     composition, transform, annotation, and style used by convenience helpers.
 
+#### M10.1–M10.9 — Completed checkpoints
+
+1. Separate celestial target direction from its derived shell marker.
+2. Add centered horizontal-coordinate geometry and its renderable composition.
+3. Add centered equatorial geometry with explicit longitude convention and its
+   renderable composition.
+4. Add explicit centered direction and finite observer sight-line composition.
+5. Add reproducible surface, small-cartoon, and observer-at-origin states.
+6. Export those states deterministically while restoring prior local state.
+7. Add explicit parallax/convergence composition with transformed baselines,
+   convergence angles, and a nonphysical-distance interpretation note.
+
 ### Gate
+
+Completed by M10.9. The following criteria remain the regression contract:
 
 - altitude, azimuth, declination, and right-ascension arc endpoints are
   geometrically verified;

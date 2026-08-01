@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
+from .annotations import Annotation, AnnotationObject, AnnotationStyle
 from .illustration import IllustrationLayer
 from .local_cartoon import LocalCartoonLayer
 from .marker_object import MarkerObject
@@ -105,3 +106,97 @@ class TargetLineIllustration(IllustrationLayer):
                     ),
                 )
                 self.sight_line_objects[observer] = obj
+
+
+class ParallaxIllustration(TargetLineIllustration):
+    """Explicit finite-baseline convergence to an illustrative shell marker."""
+
+    interpretation_note = (
+        "Illustrative convergence to displayed shell marker; "
+        "shell radius is not physical distance."
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        target: CelestialTarget,
+        local_cartoon: LocalCartoonLayer,
+        observer_anchors: Mapping[str, str],
+        include_centered_direction: bool = True,
+        direction_style: SegmentStyle | None = None,
+        sight_line_style: SegmentStyle | None = None,
+        note_style: AnnotationStyle | None = None,
+        show_note: bool = True,
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        if not isinstance(observer_anchors, Mapping):
+            raise TypeError("observer_anchors must be a mapping.")
+        if len(observer_anchors) < 2:
+            raise ValueError("Parallax illustration requires at least two observers.")
+        if note_style is not None and not isinstance(note_style, AnnotationStyle):
+            raise TypeError("note_style must be an AnnotationStyle.")
+        if not isinstance(show_note, (bool, np.bool_)):
+            raise TypeError("show_note must be a boolean.")
+
+        super().__init__(
+            name=name,
+            target=target,
+            local_cartoon=local_cartoon,
+            observer_anchors=observer_anchors,
+            include_centered_direction=include_centered_direction,
+            direction_style=direction_style,
+            sight_line_style=sight_line_style,
+            visible=visible,
+            opacity=opacity,
+        )
+        self.note_style = note_style or AnnotationStyle(
+            color="#6a4d3b",
+            font_size=12,
+        )
+        self.show_note = bool(show_note)
+        self.note_annotation: AnnotationObject | None = None
+        if self.show_note:
+            direction = np.asarray(self.target.direction)
+            self.note_annotation = self.add_annotation(
+                f"{name}.interpretation_note",
+                Annotation(
+                    text=self.interpretation_note,
+                    anchor=self.target.display_position,
+                    offset=0.07 * self.target.shell_radius * direction,
+                    style=self.note_style,
+                    associated_with=self.marker_object.name,
+                ),
+            )
+
+    @property
+    def display_distance(self) -> float:
+        """Return the illustrative shell radius, never a physical distance."""
+        return self.target.shell_radius
+
+    def _observer_pair(self, first: str, second: str):
+        if first == second:
+            raise ValueError("Observer pair must contain two distinct names.")
+        try:
+            first_line = self.sight_line_objects[first].segment
+            second_line = self.sight_line_objects[second].segment
+        except KeyError as error:
+            raise KeyError(f"Unknown parallax observer: {error.args[0]}") from error
+        return first_line, second_line
+
+    def baseline(self, first: str, second: str) -> np.ndarray:
+        """Return the transformed finite baseline from first to second."""
+        first_line, second_line = self._observer_pair(first, second)
+        return np.asarray(second_line.start) - np.asarray(first_line.start)
+
+    def baseline_length(self, first: str, second: str) -> float:
+        return float(np.linalg.norm(self.baseline(first, second)))
+
+    def convergence_angle_deg(self, first: str, second: str) -> float:
+        """Return the angle between the two finite displayed sight lines."""
+        first_line, second_line = self._observer_pair(first, second)
+        first_direction = np.asarray(first_line.direction)
+        second_direction = np.asarray(second_line.direction)
+        cosine = np.clip(first_direction @ second_direction, -1.0, 1.0)
+        return float(np.rad2deg(np.arccos(cosine)))
