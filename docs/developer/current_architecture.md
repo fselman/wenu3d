@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.37
+**Version:** 0.38
 **Date:** 2026-07-31
-**Status:** Description through M10.7 on `feature/interactive-grid-controls`
+**Status:** Description through M10.8 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -553,6 +553,17 @@ horizons are not dependencies of the controller and remain fixed. State
 descriptions make the intended directional-limit comparison explicit, and the
 canonical scene remains unchanged.
 
+M10.8 adds deterministic PNG export to `LocalScaleComparison`. Export requires
+an already-built local layer so it reuses the current plotter, fixed celestial
+objects, camera, background, and rendering context. It applies selected named
+states in order, renders and saves each state, returns the image arrays, and
+restores the exact prior local transform even if rendering fails. Output size,
+transparent background, and state selection are explicit and validated.
+Target-marker and coordinate-curve meshes are never rebuilt or transformed.
+The automated smoke scene substitutes a local untextured sphere for Earth so
+the export contract is independent of network and texture-cache state. The
+canonical scene remains unchanged.
+
 ## 12. Verification state
 
 The M2 scientific test suite verifies:
@@ -827,6 +838,12 @@ M10.7 tests verify ordered documented states, explicit reproducible transforms,
 exact anchor alignment, authoritative local-transform updates, fixed target,
 coordinate-curve, and horizon geometry, attached actor matrices, deferred
 rendering, validation, and rejection of unknown modes without state change.
+
+M10.8 tests verify all three PNG exports, nonempty RGB output, visibly distinct
+local presentations, exact original-transform restoration, repeated pixel
+determinism within one rendering environment, fixed target and coordinate
+meshes, selected transparent RGBA output, and attachment, mode, window, and
+background-option validation.
 
 ## 13. Strengths
 
