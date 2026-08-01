@@ -147,6 +147,9 @@ The [packaging guide](docs/packaging.md) defines development installation,
 distribution building, clean-environment verification, supported Python, and
 the shipped module inventory.
 
+The [styling guide](docs/styling.md) explains scene themes, primitive styles,
+role-specific composite styling, and the Horizon A organization decision.
+
 Developer documentation is in `docs/developer/`:
 
 - `current_architecture.md`;

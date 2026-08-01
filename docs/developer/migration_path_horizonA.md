@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.8
+**Version:** 1.9
 **Date:** 2026-07-31
-**Status:** M10 completed; M11 product hardening in progress through M11.4
+**Status:** M10 completed; M11 product hardening in progress through M11.5
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -535,7 +535,8 @@ Produce a standalone Horizon A release candidate.
 ### Work
 
 - classify stable, advanced, and internal APIs (completed by M11.1);
-- organize styles where accumulated parameters justify it;
+- organize styles where accumulated parameters justify it (reviewed and
+  completed by M11.5 without an additional aggregate);
 - document transparency, far-side visibility, ordering, and occlusion
   (completed by M11.2);
 - complete quick-start, interactive, batch, annotation, control, coordinate,
@@ -561,6 +562,9 @@ Produce a standalone Horizon A release candidate.
 - **M11.4 — Packaging verification:** distribution metadata, Python support,
   clean-environment commands, documentation inputs, complete module imports,
   and absence of removed modules and examples are explicit and tested.
+- **M11.5 — Style organization:** scene, primitive, and composite style
+  boundaries are documented; the review finds no additional aggregate that
+  improves the release candidate without unnecessary compatibility cost.
 
 ### Gate
 

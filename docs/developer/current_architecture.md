@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.43
+**Version:** 0.44
 **Date:** 2026-07-31
-**Status:** M11 product hardening in progress through M11.4 on `feature/interactive-grid-controls`
+**Status:** M11 product hardening in progress through M11.5 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -900,6 +900,13 @@ and documentation URLs. `docs/packaging.md` defines editable, distribution,
 wheel, and clean-environment checks. Focused tests validate metadata and
 documentation inputs, import every shipped package module, and guard the
 intentional absence of removed modules and the obsolete example.
+
+M11.5 reviews style organization and records it in `docs/styling.md`.
+Renderer-neutral primitive styles remain separated by semantics; composite
+illustrations accept those styles by scientific role; and `SceneStyle` remains
+the flat construction-time theme for the one canonical scene consumer. No new
+aggregate style is introduced because the existing boundaries already remove
+repeated scalar parameters without creating a release-candidate API migration.
 
 ## 13. Strengths
 
