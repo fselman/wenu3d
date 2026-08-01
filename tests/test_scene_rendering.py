@@ -1,4 +1,3 @@
-from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import PropertyMock
@@ -216,36 +215,63 @@ def test_sphere_frame_export_hides_ui_and_restores_scene() -> None:
     scene = make_scene()
     scene.sphere_radius = 1.0
     scene.plotter.window_size = (1800, 1200)
-    scene.controls.hidden.return_value = nullcontext()
-    scene.save = Mock(return_value=np.zeros((1200, 1200, 3), dtype=np.uint8))
-    scene.set_camera = Mock()
     scene.render = Mock()
-    scene._title_actor = Mock()
-    scene._title_actor.GetVisibility.return_value = 1
-    scene.plotter.camera.parallel_projection = False
-    scene.plotter.camera.position = (0.0, 0.0, 4.0)
+    actor = Mock()
+    scene.graph = [Mock(actors=[actor])]
+    export_plotter = Mock()
+    export_plotter.camera.parallel_projection = False
+    export_plotter.camera.position = (0.0, 0.0, 4.0)
+    export_plotter.screenshot.return_value = np.zeros(
+        (1200, 1200, 3),
+        dtype=np.uint8,
+    )
+    camera_state = CameraState(
+        position=(0.0, 0.0, 4.0),
+        focal_point=(0.0, 0.0, 0.0),
+        view_up=(0.0, 1.0, 0.0),
+        view_angle=30.0,
+    )
 
-    with patch.object(
-        CelestialScene,
-        "camera_state",
-        new_callable=PropertyMock,
-        return_value=Mock(),
+    with (
+        patch.object(
+            CelestialScene,
+            "camera_state",
+            new_callable=PropertyMock,
+            return_value=camera_state,
+        ),
+        patch("wenu3d.scene.pv.Plotter", return_value=export_plotter) as plotter,
     ):
-        image = scene.save_sphere_frame("sphere.png", size=1200, padding=0.04)
+        image = scene.save_sphere_frame(
+            "sphere.png",
+            size=1200,
+            padding=0.04,
+        )
 
     assert image.shape == (1200, 1200, 3)
-    scene.controls.hidden.assert_called_once_with()
-    scene.plotter.reset_camera.assert_called_once_with(
+    scene.render.assert_called_once_with()
+    plotter.assert_called_once_with(window_size=(1200, 1200), off_screen=True)
+    export_plotter.add_actor.assert_called_once_with(
+        actor,
+        reset_camera=False,
         render=False,
-        bounds=(-1.0, 1.0) * 3,
     )
+    assert export_plotter.camera_position == [
+        camera_state.position,
+        (0.0, 0.0, 0.0),
+        camera_state.view_up,
+    ]
+    export_plotter.reset_camera.assert_not_called()
     expected_angle = np.degrees(
         2.0 * np.arcsin(1.0 / 4.0)
     ) / 0.92
-    assert scene.plotter.camera.view_angle == pytest.approx(expected_angle)
-    scene.plotter.camera.zoom.assert_not_called()
-    scene.save.assert_called_once_with("sphere.png", transparent_background=False)
+    assert export_plotter.camera.view_angle == pytest.approx(expected_angle)
+    export_plotter.screenshot.assert_called_once_with(
+        filename=Path("sphere.png"),
+        transparent_background=False,
+        return_img=True,
+    )
     assert scene.plotter.window_size == (1800, 1200)
+    export_plotter.close.assert_called_once_with()
 
 
 def test_close_releases_scene_resources() -> None:

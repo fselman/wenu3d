@@ -40,7 +40,7 @@ def test_annotation_panel_reports_managed_size() -> None:
         layers=make_layers(),
     )
 
-    assert panel.control_size == (300, 160)
+    assert panel.control_size == (300, 190)
 
 
 def test_annotation_panel_adds_controls_at_assigned_position() -> None:

@@ -145,6 +145,7 @@ A small `RenderContext` owns:
 - actor addition and removal;
 - render requests;
 - camera configuration;
+- explicit perspective/parallel projection selection through camera state;
 - interactive/off-screen mode;
 - screenshots and export;
 - resource cleanup.

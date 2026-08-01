@@ -42,7 +42,7 @@ class VisibilityControlPanel:
     origin_x: int = 20
     origin_y: int = 960
     width: int = 260
-    height: int = 78
+    height: int = 96
     checkbox_size: int = 22
     font_size: int = 11
     widgets: list[object] = field(default_factory=list, init=False)
@@ -102,9 +102,14 @@ class ScalarControlPanel:
     origin_x: int = 20
     origin_y: int = 960
     width: int = 300
-    height: int = 88
+    height: int = 118
     widgets: list[object] = field(default_factory=list, init=False)
     _widget: object | None = field(default=None, init=False, repr=False)
+
+    @property
+    def layout_lane(self) -> str:
+        """Place scalar sliders in the manager's horizontal bottom lane."""
+        return "bottom"
 
     def __post_init__(self) -> None:
         lower, upper = (float(value) for value in self.value_range)
@@ -162,7 +167,7 @@ class AnnotationControlPanel:
     origin_y: int = 960
 
     width: int = 300
-    height: int = 160
+    height: int = 190
     checkbox_size: int = 22
     font_size: int = 11
     color: str = "#506070"
@@ -898,7 +903,8 @@ class ControlManager:
     window_size: tuple[int, int] | None = None
     margin: int = 20
     top_margin: int = 80
-    panel_gap: int = 12
+    panel_gap: int = 18
+    bottom_lane_height: int = 145
 
     panels: list[ControlPanel] = field(
         default_factory=list,
@@ -917,6 +923,7 @@ class ControlManager:
     _cursor_x: int = field(default=0, init=False, repr=False)
     _cursor_y: int = field(default=0, init=False, repr=False)
     _column_width: int = field(default=0, init=False, repr=False)
+    _bottom_cursor_x: int = field(default=0, init=False, repr=False)
     _batch_depth: int = field(default=0, init=False, repr=False)
     _render_pending: bool = field(default=False, init=False, repr=False)
 
@@ -940,9 +947,12 @@ class ControlManager:
             raise ValueError("Control top_margin cannot be negative.")
         if self.panel_gap < 0:
             raise ValueError("Control panel_gap cannot be negative.")
+        if self.bottom_lane_height < 0:
+            raise ValueError("Control bottom_lane_height cannot be negative.")
 
         self._cursor_x = self.margin
         self._cursor_y = self.window_size[1] - self.top_margin
+        self._bottom_cursor_x = self.margin
 
     def register_panel(
         self,
@@ -964,9 +974,17 @@ class ControlManager:
             - self.top_margin
             - self.margin
         )
+        layout_lane = getattr(panel, "layout_lane", "side")
         if width > available_width or height > available_height:
             raise ValueError(
                 "Control panel does not fit within the configured window."
+            )
+
+        if layout_lane == "bottom":
+            return self._register_bottom_panel(panel, width, height)
+        if height > available_height - self.bottom_lane_height:
+            raise ValueError(
+                "Side control panel does not fit above the bottom lane."
             )
 
         origin_x = self._cursor_x
@@ -975,7 +993,7 @@ class ControlManager:
 
         if (
             self.panels
-            and origin_y - height < self.margin
+            and origin_y - height < self.margin + self.bottom_lane_height
         ):
             origin_x += column_width + self.panel_gap
             origin_y = window_height - self.top_margin
@@ -1010,6 +1028,47 @@ class ControlManager:
         self._cursor_x = origin_x
         self._cursor_y = origin_y - height - self.panel_gap
         self._column_width = max(column_width, width)
+        return panel
+
+    def _register_bottom_panel(
+        self,
+        panel: PanelT,
+        width: int,
+        height: int,
+    ) -> PanelT:
+        """Place one panel left-to-right in the reserved bottom lane."""
+        window_width, _ = self.window_size
+        if height + self.margin > self.bottom_lane_height:
+            raise ValueError(
+                "Control panel is too tall for the configured bottom lane."
+            )
+        origin_x = self._bottom_cursor_x
+        origin_y = self.margin + height
+        if origin_x + width > window_width - self.margin:
+            raise ValueError(
+                "No bottom-lane control-panel space remains in the window."
+            )
+
+        placement = PanelPlacement(
+            origin_x=origin_x,
+            origin_y=origin_y,
+            width=width,
+            height=height,
+        )
+        if any(
+            placement.overlaps(existing)
+            for existing in self.placements
+        ):
+            raise RuntimeError(
+                "Calculated bottom-panel placement overlaps an existing panel."
+            )
+
+        panel.origin_x = origin_x
+        panel.origin_y = origin_y
+        panel.add()
+        self.panels.append(panel)
+        self.placements.append(placement)
+        self._bottom_cursor_x = origin_x + width + self.panel_gap
         return panel
 
     def register_widget(self, widget: object) -> object:

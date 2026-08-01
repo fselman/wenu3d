@@ -66,6 +66,33 @@ def test_altitude_arc_runs_from_horizon_foot_to_target() -> None:
     )
 
 
+@pytest.mark.parametrize("altitude_deg", [-18.3, 43.7])
+def test_complete_vertical_circle_contains_target_zenith_and_nadir(
+    altitude_deg: float,
+) -> None:
+    geometry = make_geometry(
+        azimuth_deg=142.4,
+        altitude_deg=altitude_deg,
+        samples=11,
+    )
+    points = geometry.vertical_circle_points
+    radius = geometry.target.shell_radius
+
+    for expected in (
+        geometry.target.display_position,
+        radius * geometry.frame.pole,
+        -radius * geometry.frame.pole,
+    ):
+        distances = np.linalg.norm(points - expected, axis=1)
+        assert np.min(distances) == pytest.approx(0.0, abs=1e-12)
+
+    plane_normal = np.cross(
+        geometry.vertical_circle_foot,
+        geometry.frame.pole,
+    )
+    np.testing.assert_allclose(points @ plane_normal, 0.0, atol=1e-12)
+
+
 def test_negative_altitude_preserves_decreasing_arc_direction() -> None:
     geometry = make_geometry(azimuth_deg=210.0, altitude_deg=-18.0)
     arc = geometry.altitude_arc

@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
@@ -107,3 +107,70 @@ def test_scene_captures_current_camera_state() -> None:
         view_up=(0.0, 0.0, 1.0),
         view_angle=22.0,
     )
+
+
+def test_scene_selects_parallel_projection_through_camera_state() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.set_camera = Mock()
+    state = make_state()
+    scene.default_camera = state
+
+    with patch.object(
+        CelestialScene,
+        "camera_state",
+        new_callable=PropertyMock,
+        return_value=state,
+    ):
+        scene.set_parallel_projection(
+            True,
+            parallel_scale=1.12,
+            make_default=True,
+            render=False,
+        )
+
+    applied = scene.set_camera.call_args.args[0]
+    assert applied.parallel_projection is True
+    assert applied.parallel_scale == pytest.approx(1.12)
+    assert applied.position == state.position
+    assert applied.focal_point == state.focal_point
+    assert applied.view_up == state.view_up
+    assert scene.default_camera.parallel_projection is True
+    assert scene.default_camera.parallel_scale == pytest.approx(1.12)
+    scene.set_camera.assert_called_once_with(applied, render=False)
+
+
+def test_projection_selection_preserves_scale_when_unspecified() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.set_camera = Mock()
+    state = make_state()
+
+    with patch.object(
+        CelestialScene,
+        "camera_state",
+        new_callable=PropertyMock,
+        return_value=state,
+    ):
+        scene.set_parallel_projection(True)
+
+    applied = scene.set_camera.call_args.args[0]
+    assert applied.parallel_projection is True
+    assert applied.parallel_scale == state.parallel_scale
+
+
+def test_projection_selection_validates_mode_and_scale() -> None:
+    scene = object.__new__(CelestialScene)
+    state = make_state()
+    scene.default_camera = state
+
+    with patch.object(
+        CelestialScene,
+        "camera_state",
+        new_callable=PropertyMock,
+        return_value=state,
+    ):
+        with pytest.raises(TypeError, match="boolean"):
+            scene.set_parallel_projection(1)
+        with pytest.raises(TypeError, match="make_default"):
+            scene.set_parallel_projection(True, make_default=1)
+        with pytest.raises(ValueError, match="positive"):
+            scene.set_parallel_projection(True, parallel_scale=0.0)

@@ -133,6 +133,7 @@ def test_scene_reset_camera_restores_canonical_view() -> None:
     scene = object.__new__(CelestialScene)
     scene.plotter = make_plotter()
     scene.shell = Mock()
+    scene.default_camera = scene.canonical_camera
 
     scene.reset_camera()
 

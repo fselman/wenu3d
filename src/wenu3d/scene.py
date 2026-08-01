@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -128,6 +128,7 @@ class CelestialScene:
         self.plotter.set_background(self.style.background)
 
         self.graph = SceneGraph()
+        self.default_camera = self.canonical_camera
         self._local_scale = 1.0
         self._title_actor: object | None = None
         self._closed = False
@@ -148,7 +149,7 @@ class CelestialScene:
         self._add_earth_and_observer()
         self._add_axis(visible=self.axis_visible)
         self.plotter.enable_lightkit()
-        self.set_camera(self.canonical_camera, render=False)
+        self.set_camera(self.default_camera, render=False)
 
     def _add_celestial_shell_layer(self) -> None:
         """Add the celestial shell through the scene object lifecycle."""
@@ -433,9 +434,47 @@ class CelestialScene:
         if render:
             self.plotter.render()
 
+    def set_parallel_projection(
+        self,
+        enabled: bool = True,
+        *,
+        parallel_scale: float | None = None,
+        make_default: bool = False,
+        render: bool = True,
+    ) -> None:
+        """Select perspective or parallel projection through camera state.
+
+        Parallel projection is the limiting view from an infinitely distant
+        camera. An explicit ``parallel_scale`` is the half-height of the
+        viewport in world coordinates; when omitted, the current camera value
+        is preserved.
+        """
+        if not isinstance(enabled, (bool, np.bool_)):
+            raise TypeError("enabled must be a boolean.")
+        if not isinstance(make_default, (bool, np.bool_)):
+            raise TypeError("make_default must be a boolean.")
+        state = self.camera_state
+        scale = (
+            state.parallel_scale
+            if parallel_scale is None
+            else float(parallel_scale)
+        )
+        updated = replace(
+            state,
+            parallel_projection=bool(enabled),
+            parallel_scale=scale,
+        )
+        if make_default:
+            self.default_camera = replace(
+                self.default_camera,
+                parallel_projection=updated.parallel_projection,
+                parallel_scale=updated.parallel_scale,
+            )
+        self.set_camera(updated, render=render)
+
     def reset_camera(self) -> None:
-        """Restore the canonical illustration camera and refresh the shell."""
-        self.set_camera(self.canonical_camera)
+        """Restore the scene's default camera and refresh the shell."""
+        self.set_camera(self.default_camera)
 
     def _ensure_title(self) -> None:
         if self._title_actor is None:
@@ -490,8 +529,8 @@ class CelestialScene:
         """Save a square, tightly framed celestial sphere without UI overlays.
 
         The current viewing direction and view-up orientation are retained.
-        Camera, window size, title visibility, and controls are restored after
-        export so the interactive scene remains authoritative.
+        Existing graph actors are mirrored into a temporary off-screen
+        plotter so the interactive native window is never resized.
         """
         size = int(size)
         padding = float(padding)
@@ -500,57 +539,63 @@ class CelestialScene:
         if not np.isfinite(padding) or not 0.0 <= padding < 0.5:
             raise ValueError("Sphere-frame padding must be in [0, 0.5).")
 
+        self.render()
         original_camera = self.camera_state
-        original_window_size = tuple(int(value) for value in self.plotter.window_size)
-        self._ensure_title()
-        title_visibility = True
-        get_title_visibility = getattr(self._title_actor, "GetVisibility", None)
-        if callable(get_title_visibility):
-            title_visibility = bool(get_title_visibility())
-
         radius = float(self.sphere_radius)
-        bounds = (-radius, radius) * 3
+        export_plotter = pv.Plotter(
+            window_size=(size, size),
+            off_screen=True,
+        )
         try:
-            with self.controls.hidden():
-                set_title_visibility = getattr(
-                    self._title_actor,
-                    "SetVisibility",
-                    None,
-                )
-                if callable(set_title_visibility):
-                    set_title_visibility(False)
+            export_plotter.set_background(self.style.background)
+            for layer in self.graph:
+                for actor in layer.actors:
+                    export_plotter.add_actor(
+                        actor,
+                        reset_camera=False,
+                        render=False,
+                    )
+            export_plotter.enable_lightkit()
+            export_plotter.camera_position = [
+                original_camera.position,
+                (0.0, 0.0, 0.0),
+                original_camera.view_up,
+            ]
+            camera = export_plotter.camera
+            if original_camera.parallel_projection:
+                camera.enable_parallel_projection()
+            else:
+                camera.disable_parallel_projection()
+            camera.view_angle = original_camera.view_angle
+            camera.parallel_scale = original_camera.parallel_scale
 
-                self.plotter.window_size = (size, size)
-                self.plotter.reset_camera(render=False, bounds=bounds)
-                camera = self.plotter.camera
-                fill_fraction = 1.0 - 2.0 * padding
-                if camera.parallel_projection:
-                    camera.parallel_scale = radius / fill_fraction
-                else:
-                    camera_distance = float(
-                        np.linalg.norm(
-                            np.asarray(camera.position, dtype=float)
-                        )
+            fill_fraction = 1.0 - 2.0 * padding
+            if camera.parallel_projection:
+                camera.parallel_scale = radius / fill_fraction
+            else:
+                camera_distance = float(
+                    np.linalg.norm(
+                        np.asarray(camera.position, dtype=float)
                     )
-                    if camera_distance <= radius:
-                        raise RuntimeError(
-                            "Sphere-frame camera must remain outside the sphere."
-                        )
-                    angular_radius = np.arcsin(radius / camera_distance)
-                    camera.view_angle = float(
-                        np.degrees(2.0 * angular_radius) / fill_fraction
-                    )
-                image = self.save(
-                    path,
-                    transparent_background=transparent_background,
                 )
+                if camera_distance <= radius:
+                    raise RuntimeError(
+                        "Sphere-frame camera must remain outside the sphere."
+                    )
+                angular_radius = np.arcsin(radius / camera_distance)
+                camera.view_angle = float(
+                    np.degrees(2.0 * angular_radius) / fill_fraction
+                )
+            export_plotter.render()
+            image = export_plotter.screenshot(
+                filename=Path(path),
+                transparent_background=transparent_background,
+                return_img=True,
+            )
+            if image is None:
+                raise RuntimeError("PyVista did not return the saved image.")
         finally:
-            self.plotter.window_size = original_window_size
-            self.set_camera(original_camera, render=False)
-            set_title_visibility = getattr(self._title_actor, "SetVisibility", None)
-            if callable(set_title_visibility):
-                set_title_visibility(title_visibility)
-            self.render()
+            export_plotter.close()
         return image
 
     def show(self, *, screenshot: str | None = None) -> None:

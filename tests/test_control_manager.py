@@ -7,6 +7,7 @@ from wenu3d.controls import (
     ControlManager,
     GridControlPanel,
     PanelPlacement,
+    ScalarControlPanel,
     VisibilityControlPanel,
 )
 from wenu3d.frames import horizontal_frame
@@ -42,6 +43,7 @@ def make_manager(
         margin=20,
         top_margin=20,
         panel_gap=10,
+        bottom_lane_height=0,
     )
     return manager, plotter
 
@@ -191,6 +193,77 @@ def test_control_manager_stacks_then_wraps_panels() -> None:
     ]
     assert manager.panels == [first, second, third]
     assert all(panel.add_count == 1 for panel in manager.panels)
+
+
+def test_scalar_panels_fill_reserved_bottom_lane_left_to_right() -> None:
+    plotter = Mock()
+    plotter.window_size = (1600, 1150)
+    plotter.add_slider_widget.side_effect = [Mock(), Mock(), Mock()]
+    manager = ControlManager(
+        plotter=plotter,
+        window_size=(1600, 1150),
+    )
+    panels = [
+        ScalarControlPanel(
+            plotter=plotter,
+            set_value=Mock(),
+            get_value=lambda: 1.0,
+            title=title,
+            value_range=(0.0, 2.0),
+        )
+        for title in ("Acimut", "Altura", "Horizonte local")
+    ]
+
+    for panel in panels:
+        manager.register_panel(panel)
+
+    assert [(panel.origin_x, panel.origin_y) for panel in panels] == [
+        (20, 138),
+        (338, 138),
+        (656, 138),
+    ]
+    assert all(
+        placement.origin_y - placement.height == 20
+        for placement in manager.placements
+    )
+
+
+def test_side_panels_reserve_bottom_control_lane() -> None:
+    manager, _ = make_manager(window_size=(500, 400))
+    manager.bottom_lane_height = 145
+    first = FakePanel(control_size=(100, 150))
+    second = FakePanel(control_size=(100, 150))
+
+    manager.register_panel(first)
+    manager.register_panel(second)
+
+    assert first.origin_x == 20
+    assert second.origin_x == 130
+
+
+def test_default_gap_and_reported_panel_sizes_prevent_dense_overlap() -> None:
+    manager, _ = make_manager(window_size=(1600, 1150))
+    panels = [
+        FakePanel(control_size=(340, 260)),
+        FakePanel(control_size=(260, 96)),
+        FakePanel(control_size=(260, 96)),
+        FakePanel(control_size=(260, 96)),
+        FakePanel(control_size=(300, 118)),
+        FakePanel(control_size=(300, 118)),
+        FakePanel(control_size=(300, 118)),
+        FakePanel(control_size=(300, 190)),
+    ]
+    manager.panel_gap = 18
+
+    for panel in panels:
+        manager.register_panel(panel)
+
+    assert not any(
+        first.overlaps(second)
+        for index, first in enumerate(manager.placements)
+        for second in manager.placements[index + 1:]
+    )
+    assert max(placement.origin_x for placement in manager.placements) > 20
 
 
 def test_control_manager_rejects_duplicate_panel() -> None:

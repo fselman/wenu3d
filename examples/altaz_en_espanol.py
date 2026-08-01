@@ -27,6 +27,17 @@ scene = CelestialScene(
     window_size=(1600, 1150),
 )
 
+# Horizontal-coordinate geometry is clearest in the limiting view from an
+# infinitely distant diagram camera. This changes only the projection used to
+# view the illustration; the astronomical observer remains at the center of
+# the celestial sphere.
+scene.set_parallel_projection(
+    True,
+    parallel_scale=1.12 * scene.sphere_radius,
+    make_default=True,
+    render=False,
+)
+
 # Put the observer's base and finite tangent platform in the centered ideal
 # horizon plane. The local cartoon moves as a unit, so Earth is lowered while
 # its observer, platform, and cardinal context remain mutually consistent.
@@ -156,6 +167,9 @@ east_west_axis = plane_axes.add_segment(
     ),
 )
 scene.add(plane_axes)
+
+# Restore the standard celestial-shell, local-scale, and camera controls.
+scene.add_global_controls()
 
 # Earth visibility is a reusable scene-object control, not example-specific
 # widget code. The observer, tangent platform, and celestial references remain.

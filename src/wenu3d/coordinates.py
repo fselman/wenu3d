@@ -8,7 +8,7 @@ import numpy as np
 from .annotations import Annotation, AnnotationObject, AnnotationStyle
 from .arcs import SphericalArc
 from .curve_object import CurveObject
-from .curves import CurveStyle
+from .curves import CurveStyle, SampledCurve
 from .frames import SphericalFrame
 from .illustration import IllustrationLayer
 from .marker_object import MarkerObject
@@ -152,9 +152,9 @@ class HorizontalCoordinateGeometry:
         foot = np.asarray(self._foot_direction)
         vertical_frame = SphericalFrame(
             name=f"{self.target.name}.vertical_circle",
-            pole=np.cross(foot, self.frame.pole),
-            zero=foot,
-            east=self.frame.pole,
+            pole=np.cross(self.frame.pole, foot),
+            zero=self.frame.pole,
+            east=foot,
         )
         return SphericalArc.great_circle(
             vertical_frame,
@@ -163,6 +163,45 @@ class HorizontalCoordinateGeometry:
             radius=self.target.shell_radius,
             samples=max(self.samples, 181),
         )
+
+    @property
+    def vertical_circle_points(self) -> np.ndarray:
+        """Sample the complete vertical circle through exact key directions."""
+        samples = max(self.samples, 181)
+        half_samples = max(2, samples // 2 + 1)
+
+        def interval(start: float, end: float) -> np.ndarray:
+            fraction = abs(end - start) / 180.0
+            count = max(2, int(np.ceil(fraction * (samples - 1))) + 1)
+            return np.linspace(start, end, count)
+
+        key_latitudes = sorted({
+            -90.0,
+            0.0,
+            self.altitude_deg,
+            90.0,
+        })
+        latitude_parts = [
+            interval(start, end)
+            for start, end in zip(key_latitudes[:-1], key_latitudes[1:])
+        ]
+        first_latitudes = np.concatenate((
+            latitude_parts[0],
+            *(part[1:] for part in latitude_parts[1:]),
+        ))
+        first_longitudes = np.full_like(
+            first_latitudes,
+            self.azimuth_deg,
+        )
+        second_latitudes = np.linspace(90.0, -90.0, half_samples)[1:]
+        second_longitudes = np.full_like(
+            second_latitudes,
+            (self.azimuth_deg + 180.0) % 360.0,
+        )
+        return self.target.shell_radius * np.concatenate((
+            self.frame.point(first_longitudes, first_latitudes),
+            self.frame.point(second_longitudes, second_latitudes),
+        ))
 
 
 @dataclass(frozen=True)
@@ -533,7 +572,8 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
         if self.show_vertical_circle:
             self.vertical_circle_object = self.add_curve(
                 f"{self.name}.vertical_circle",
-                self.geometry.vertical_circle.to_curve(
+                SampledCurve(
+                    points=self.geometry.vertical_circle_points,
                     style=self.vertical_circle_style,
                 ),
             )

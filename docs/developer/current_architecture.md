@@ -424,16 +424,29 @@ position, focal point, view-up vector, view angle, parallel-projection state,
 and parallel scale. `camera_state`, `set_camera()`, and `reset_camera()` make
 views explicit and reproducible.
 
+`set_parallel_projection()` is the scene-level projection capability. It
+selects VTK perspective or parallel projection by replacing the current
+immutable `CameraState` and applying it through `set_camera()`. An optional
+parallel scale specifies half the viewport height in world coordinates; if it
+is omitted, the current scale is retained. With `make_default=True`, the
+projection choice also becomes the instance-level default restored by the
+standard reset-camera control. Parallel projection represents the limiting
+view from an infinitely distant diagram camera and does not alter the finite
+or centered scientific observer geometry. The Spanish AltAz example uses this
+mode as its default so vertical great circles are not distorted by perspective.
+
 `save_sphere_frame()` is the reusable publication-export path for an
-interactive celestial-sphere view. It temporarily hides managed controls and
-the scene title, changes the output window to a square, and frames the
-celestial sphere with configurable fractional padding. Framing changes the
-parallel scale or perspective view angle analytically while retaining the
-interactive camera position and orientation. This is important because shell
-opacity is camera-dependent: moving the camera onto or inside the shell would
-invalidate the intended transparent-center and emphasized-limb material.
-After the screenshot, the method restores the window size, camera, title, and
-control visibility even if export fails.
+interactive celestial-sphere view. It mirrors the actors already owned by the
+scene graph into a temporary square off-screen plotter, excluding titles and
+managed controls because those overlays are not graph actors. The export
+plotter frames the celestial sphere with configurable fractional padding and
+retains the interactive viewing direction and view-up orientation. Framing
+keeps the live camera position, centers the export focal point on the sphere,
+and changes only the export camera's parallel scale or perspective view angle.
+Keeping the absolute camera position also keeps the shared shell material
+consistent with the live camera-dependent RGBA calculation.
+The interactive native window, camera, graph attachments, title, and controls
+are therefore never resized, detached, hidden, or restored during export.
 
 The release example uses this path to export a numbered sequence from one
 interactive viewport. The first image preserves the user-selected local
@@ -949,6 +962,22 @@ illustrations from scalar controls without manipulating PyVista actors.
 Independent reference lines in an ideal plane remain ordinary
 renderer-neutral `LineSegment` objects grouped by an `IllustrationLayer`, and
 use the generic scene-object visibility control.
+
+Horizontal vertical-circle sampling explicitly includes the semantic target,
+Zenith, and Nadir, so the weak complete reference circle and the emphasized
+altitude arc share exact vertices. Managed panel footprints include PyVista's
+text and slider-label extents; dense example controls therefore wrap to a new
+column before their visible content overlaps. Examples opt into the standard
+shell/local-scale panel through the same `add_global_controls()` capability as
+other clients.
+
+Scalar control panels declare a bottom layout lane. `ControlManager` reserves
+that band before placing side panels and lays scalar panels out left-to-right,
+while non-scalar controls continue to stack and wrap through side columns.
+Sphere-only export creates a separate off-screen plotter at the requested
+square dimensions and mirrors the existing scene-graph actors into it. It
+does not ask PyVista to resize an already-open native render window, so macOS
+window-manager constraints cannot change or corrupt the exported frame.
 
 ## 13. Strengths
 
