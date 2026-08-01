@@ -1,8 +1,11 @@
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock
+from unittest.mock import PropertyMock
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from wenu3d import CameraState
 from wenu3d.scene import CelestialScene
@@ -107,6 +110,7 @@ def test_scene_configures_plotter_for_off_screen_rendering() -> None:
 def test_save_renders_opaque_image_at_configured_size() -> None:
     scene = make_scene()
     scene.render = Mock()
+    scene.set_camera = Mock()
     image = np.zeros((800, 1200, 3), dtype=np.uint8)
     scene.plotter.screenshot.return_value = image
     output = Path("illustration.png")
@@ -114,6 +118,7 @@ def test_save_renders_opaque_image_at_configured_size() -> None:
     result = scene.save(output)
 
     scene.render.assert_called_once_with()
+    scene.set_camera.assert_not_called()
     scene.plotter.screenshot.assert_called_once_with(
         filename=output,
         transparent_background=False,
@@ -180,6 +185,51 @@ def test_repeated_save_reuses_scene_content() -> None:
 
     scene.plotter.add_text.assert_called_once()
     assert scene.plotter.screenshot.call_count == 2
+
+
+def test_sphere_frame_export_validates_size_and_padding() -> None:
+    scene = make_scene()
+
+    with pytest.raises(ValueError, match="size"):
+        scene.save_sphere_frame("sphere.png", size=0)
+    with pytest.raises(ValueError, match="padding"):
+        scene.save_sphere_frame("sphere.png", padding=0.5)
+
+
+def test_sphere_frame_export_hides_ui_and_restores_scene() -> None:
+    scene = make_scene()
+    scene.sphere_radius = 1.0
+    scene.plotter.window_size = (1800, 1200)
+    scene.controls.hidden.return_value = nullcontext()
+    scene.save = Mock(return_value=np.zeros((1200, 1200, 3), dtype=np.uint8))
+    scene.set_camera = Mock()
+    scene.render = Mock()
+    scene._title_actor = Mock()
+    scene._title_actor.GetVisibility.return_value = 1
+    scene.plotter.camera.parallel_projection = False
+    scene.plotter.camera.position = (0.0, 0.0, 4.0)
+
+    with patch.object(
+        CelestialScene,
+        "camera_state",
+        new_callable=PropertyMock,
+        return_value=Mock(),
+    ):
+        image = scene.save_sphere_frame("sphere.png", size=1200, padding=0.04)
+
+    assert image.shape == (1200, 1200, 3)
+    scene.controls.hidden.assert_called_once_with()
+    scene.plotter.reset_camera.assert_called_once_with(
+        render=False,
+        bounds=(-1.0, 1.0) * 3,
+    )
+    expected_angle = np.degrees(
+        2.0 * np.arcsin(1.0 / 4.0)
+    ) / 0.92
+    assert scene.plotter.camera.view_angle == pytest.approx(expected_angle)
+    scene.plotter.camera.zoom.assert_not_called()
+    scene.save.assert_called_once_with("sphere.png", transparent_background=False)
+    assert scene.plotter.window_size == (1800, 1200)
 
 
 def test_close_releases_scene_resources() -> None:

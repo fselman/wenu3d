@@ -308,17 +308,23 @@ def test_current_stick_figure_builds_seven_raw_actors() -> None:
     assert actors == tube_actors + [head_actor]
 
 
-def test_current_celestial_axis_remains_outside_local_cartoon() -> None:
+def test_celestial_axis_is_a_separate_graph_layer() -> None:
     scene = make_local_scene()
+    scene.style.axis_radius = 0.004
+    scene.style.axis_color = "#123456"
+    scene.style.axis_opacity = 0.4
 
-    with patch("wenu3d.scene.add_tube") as add_tube:
-        scene._add_axis()
+    with patch.object(scene, "add", side_effect=lambda layer: scene.graph.add(layer)):
+        scene._add_axis(visible=False)
 
-    add_tube.assert_called_once()
-    points = add_tube.call_args.args[1]
-    np.testing.assert_allclose(points[0], -1.10 * scene.equatorial.pole)
-    np.testing.assert_allclose(points[1], 1.10 * scene.equatorial.pole)
-    assert len(scene.graph) == 0
+    axis_layer = scene.graph.get("celestial_axis")
+    assert axis_layer.get("celestial_axis.rotation") is scene.axis
+    np.testing.assert_allclose(scene.axis.points[0], -1.10 * scene.equatorial.pole)
+    np.testing.assert_allclose(scene.axis.points[1], 1.10 * scene.equatorial.pole)
+    assert scene.axis.tube_radius == pytest.approx(0.004)
+    assert scene.axis.color == "#123456"
+    assert scene.axis.opacity == pytest.approx(0.4)
+    assert scene.axis.visible is False
 
 
 def test_current_local_scale_does_not_modify_centered_grid_model() -> None:

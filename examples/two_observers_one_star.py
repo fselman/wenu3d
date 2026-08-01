@@ -12,6 +12,8 @@ from pathlib import Path
 from wenu3d import (
     CelestialScene,
     CelestialTarget,
+    GridLayer,
+    GridStyle,
     MarkerStyle,
     Observer,
     ObserverComposition,
@@ -24,6 +26,9 @@ from wenu3d import (
 LATITUDE_DEG = -32.4524
 LONGITUDE_DEG = -71.2311
 EARTH_RADIUS = 0.25
+INITIAL_LOCAL_SCALE = 0.20
+COMPARISON_LOCAL_SCALES = (0.20, 0.01)
+WINDOW_SIZE = (1800, 1200)
 
 
 scene = CelestialScene(
@@ -32,8 +37,29 @@ scene = CelestialScene(
     location_name="La Ligua and Maunakea",
     title="Two observers and one star",
     earth_radius=EARTH_RADIUS,
-    window_size=(1800, 1200),
+    axis_visible=False,
+    window_size=WINDOW_SIZE,
 )
+
+# A restrained equatorial grid supplies surface-orientation cues without
+# introducing a decorative texture or a second shell implementation.
+equatorial_grid = GridLayer(
+    name="equatorial_depth_cue",
+    frame=scene.equatorial,
+    meridians_deg=tuple(range(0, 360, 30)),
+    parallels_deg=tuple(range(-80, 81, 20)),
+    major_meridians_deg=(),
+    major_parallels_deg=(),
+    radius=0.988 * scene.sphere_radius,
+    style=GridStyle(
+        color="#71869a",
+        major_radius=0.0016,
+        minor_radius=0.0008,
+        major_opacity=0.20,
+        minor_opacity=0.10,
+    ),
+)
+scene.add(equatorial_grid)
 
 # The scene already contains the canonical La Ligua observer.  Add a second
 # observer at the Maunakea observatory site.  The large geographic separation
@@ -99,14 +125,78 @@ scene.add(lines)
 
 # The standard local-scale control now refreshes transform-dependent finite
 # sight lines while leaving the star and centered direction line fixed.
-scene.add_global_controls()
+global_controls = scene.add_global_controls()
 
-output = (
+# Export-mode selection belongs to this example. PyVista radio buttons are
+# grouped, so exactly one choice remains active. The default publication mode
+# omits the interactive controls; select the other button to retain them.
+export_options = {"include_controls": False}
+
+
+def select_sphere_only() -> None:
+    export_options["include_controls"] = False
+
+
+def select_controls() -> None:
+    export_options["include_controls"] = True
+
+
+export_mode_widgets = (
+    scene.plotter.add_radio_button_widget(
+        callback=select_sphere_only,
+        radio_button_group="png_export_mode",
+        value=True,
+        title="Sphere only",
+        position=(20, 610),
+        size=24,
+        border_size=4,
+        color_on="#506070",
+        color_off="#d4d4d4",
+        background_color="#f7f6f2",
+    ),
+    scene.plotter.add_radio_button_widget(
+        callback=select_controls,
+        radio_button_group="png_export_mode",
+        value=False,
+        title="Include controls",
+        position=(20, 565),
+        size=24,
+        border_size=4,
+        color_on="#506070",
+        color_off="#d4d4d4",
+        background_color="#f7f6f2",
+    ),
+)
+scene.controls.register_radio_group("png_export_mode")
+
+output_directory = (
     Path(__file__).resolve().parents[1]
     / "outputs"
-    / "two_observers_one_star.png"
 )
-output.parent.mkdir(parents=True, exist_ok=True)
+output_directory.mkdir(parents=True, exist_ok=True)
 
-scene.show(screenshot=str(output))
+# Choose the first scale and viewport interactively, then close the window.
+# Saving without camera or window-size overrides captures the current live
+# renderer exactly. Subsequent images change only the local-cartoon scale.
+scene.set_local_scale(INITIAL_LOCAL_SCALE, render=False)
+scene.show()
+
+# Button widgets and control-panel items use different VTK visibility APIs.
+# Hide both radio buttons as well as the managed scene controls when the
+# publication-oriented "Sphere only" mode was selected.
+controls_are_included = export_options["include_controls"]
+
+def save_numbered(index: int) -> None:
+    path = output_directory / f"two_observers_one_star_{index:03d}.png"
+    if controls_are_included:
+        scene.save(path)
+    else:
+        scene.save_sphere_frame(path, size=1200, padding=0.035)
+
+
+save_numbered(1)
+for index, scale in enumerate(COMPARISON_LOCAL_SCALES, start=2):
+    scene.set_local_scale(scale, render=False)
+    save_numbered(index)
+
 scene.close()

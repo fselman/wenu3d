@@ -8,6 +8,7 @@ import numpy as np
 import pyvista as pv
 
 
+from .axis import CelestialAxisObject
 from .annotations import AnnotationLayer
 from .camera import CameraState
 from .controls import (
@@ -24,7 +25,6 @@ from .local_cartoon import LocalCartoonLayer
 from .observer import ObserverComposition, StickFigureRepresentation
 from .observer_model import Observer
 from .platforms import CardinalDirectionsDecoration, LocalPlatform
-from .rendering import add_tube
 from .scene_object import SceneObject
 from .shell import CelestialShellObject
 from .style import SceneStyle
@@ -99,6 +99,7 @@ class CelestialScene:
         earth_radius: float = 0.25,
         sphere_radius: float = 1.0,
         style: SceneStyle | None = None,
+        axis_visible: bool = True,
         window_size=(1600, 1150),
         off_screen: bool = False,
     ) -> None:
@@ -111,6 +112,9 @@ class CelestialScene:
         self.earth_radius = earth_radius
         self.sphere_radius = sphere_radius
         self.style = style or SceneStyle()
+        if not isinstance(axis_visible, (bool, np.bool_)):
+            raise TypeError("axis_visible must be a boolean.")
+        self.axis_visible = bool(axis_visible)
 
         self.horizontal = horizontal_frame()
         self.equatorial = equatorial_frame(latitude_deg)
@@ -140,7 +144,7 @@ class CelestialScene:
     def _build_base_scene(self) -> None:
         self._add_celestial_shell_layer()
         self._add_earth_and_observer()
-        self._add_axis()
+        self._add_axis(visible=self.axis_visible)
         self.plotter.enable_lightkit()
         self.set_camera(self.canonical_camera, render=False)
 
@@ -242,18 +246,19 @@ class CelestialScene:
         self.local_cartoon.add_observer(self.observer_composition)
         self.add(self.local_cartoon)
 
-    def _add_axis(self) -> None:
-        ncp = self.equatorial.pole
-        add_tube(
-            self.plotter,
-            np.vstack([
-                -1.10 * self.sphere_radius * ncp,
-                1.10 * self.sphere_radius * ncp,
-            ]),
-            color="#333333",
-            radius=0.006,
-            opacity=0.85,
+    def _add_axis(self, *, visible: bool = True) -> None:
+        self.axis = CelestialAxisObject(
+            name="celestial_axis.rotation",
+            direction=self.equatorial.pole,
+            half_length=1.10 * self.sphere_radius,
+            tube_radius=self.style.axis_radius,
+            color=self.style.axis_color,
+            opacity=self.style.axis_opacity,
+            visible=visible,
         )
+        layer = Layer(name="celestial_axis")
+        layer.add(self.axis)
+        self.add(layer)
 
     def make_horizontal_grid(
         self,
@@ -316,16 +321,34 @@ class CelestialScene:
         panel = GlobalControlPanel(
             plotter=self.plotter,
             set_sphere_presence=self._set_sphere_presence,
-            set_local_scale=self._set_local_scale,
+            set_local_scale=self.set_local_scale,
             get_sphere_presence=lambda: self.shell.presence,
             get_local_scale=lambda: self._local_scale,
             reset_camera=self.reset_camera,
         )
         return self.controls.register_panel(panel)
 
-    def _set_local_scale(self, value: float) -> None:
+    @property
+    def local_scale(self) -> float:
+        """Return the authoritative local-cartoon scale."""
+        return self._local_scale
+
+    def set_local_scale(
+        self,
+        value: float,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Set the authoritative local-cartoon scale."""
         self._local_scale = float(value)
-        self.local_cartoon.set_scale(self._local_scale)
+        if render:
+            self.local_cartoon.set_scale(self._local_scale)
+        else:
+            self.local_cartoon.set_scale(self._local_scale, render=False)
+
+    def _set_local_scale(self, value: float) -> None:
+        """Compatibility wrapper for the former internal callback."""
+        self.set_local_scale(value)
 
     def _set_sphere_presence(self, value: float) -> None:
         self.shell.set_presence(value)
@@ -413,6 +436,80 @@ class CelestialScene:
         image = self.plotter.screenshot(**screenshot_options)
         if image is None:
             raise RuntimeError("PyVista did not return the saved image.")
+        return image
+
+    def save_sphere_frame(
+        self,
+        path: str | Path,
+        *,
+        size: int = 1200,
+        padding: float = 0.035,
+        transparent_background: bool = False,
+    ) -> np.ndarray:
+        """Save a square, tightly framed celestial sphere without UI overlays.
+
+        The current viewing direction and view-up orientation are retained.
+        Camera, window size, title visibility, and controls are restored after
+        export so the interactive scene remains authoritative.
+        """
+        size = int(size)
+        padding = float(padding)
+        if size <= 0:
+            raise ValueError("Sphere-frame size must be positive.")
+        if not np.isfinite(padding) or not 0.0 <= padding < 0.5:
+            raise ValueError("Sphere-frame padding must be in [0, 0.5).")
+
+        original_camera = self.camera_state
+        original_window_size = tuple(int(value) for value in self.plotter.window_size)
+        self._ensure_title()
+        title_visibility = True
+        get_title_visibility = getattr(self._title_actor, "GetVisibility", None)
+        if callable(get_title_visibility):
+            title_visibility = bool(get_title_visibility())
+
+        radius = float(self.sphere_radius)
+        bounds = (-radius, radius) * 3
+        try:
+            with self.controls.hidden():
+                set_title_visibility = getattr(
+                    self._title_actor,
+                    "SetVisibility",
+                    None,
+                )
+                if callable(set_title_visibility):
+                    set_title_visibility(False)
+
+                self.plotter.window_size = (size, size)
+                self.plotter.reset_camera(render=False, bounds=bounds)
+                camera = self.plotter.camera
+                fill_fraction = 1.0 - 2.0 * padding
+                if camera.parallel_projection:
+                    camera.parallel_scale = radius / fill_fraction
+                else:
+                    camera_distance = float(
+                        np.linalg.norm(
+                            np.asarray(camera.position, dtype=float)
+                        )
+                    )
+                    if camera_distance <= radius:
+                        raise RuntimeError(
+                            "Sphere-frame camera must remain outside the sphere."
+                        )
+                    angular_radius = np.arcsin(radius / camera_distance)
+                    camera.view_angle = float(
+                        np.degrees(2.0 * angular_radius) / fill_fraction
+                    )
+                image = self.save(
+                    path,
+                    transparent_background=transparent_background,
+                )
+        finally:
+            self.plotter.window_size = original_window_size
+            self.set_camera(original_camera, render=False)
+            set_title_visibility = getattr(self._title_actor, "SetVisibility", None)
+            if callable(set_title_visibility):
+                set_title_visibility(title_visibility)
+            self.render()
         return image
 
     def show(self, *, screenshot: str | None = None) -> None:

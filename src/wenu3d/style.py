@@ -27,5 +27,9 @@ class SceneStyle:
     horizontal_grid_color: str = "#577fb7"
     equatorial_grid_color: str = "#75638f"
 
+    axis_color: str = "#333333"
+    axis_radius: float = 0.006
+    axis_opacity: float = 0.85
+
     plane_color: str = "#c8c9c8"
     text_color: str = "#222222"

@@ -401,6 +401,10 @@ class GridControlPanel:
         default_factory=list,
         init=False,
     )
+    text_actors: list[object] = field(
+        default_factory=list,
+        init=False,
+    )
     _grid_widget: object | None = field(
         default=None,
         init=False,
@@ -462,12 +466,13 @@ class GridControlPanel:
     def add(self) -> None:
         y = self.origin_y
 
-        self.plotter.add_text(
+        title = self.plotter.add_text(
             f"{self.grid.name.title()} grid",
             position=(self.origin_x, y),
             font_size=self.font_size + 2,
             color="#202020",
         )
+        self.text_actors.append(title)
         y -= 34
 
         y = self._add_checkbox_row(
@@ -535,7 +540,7 @@ class GridControlPanel:
 
         self.widgets.append(widget)
 
-        self.plotter.add_text(
+        label = self.plotter.add_text(
             title,
             position=(
                 x + self.checkbox_size + 7,
@@ -544,6 +549,7 @@ class GridControlPanel:
             font_size=self.font_size,
             color="#202020",
         )
+        self.text_actors.append(label)
 
         return y - self.row_height
 
@@ -781,6 +787,11 @@ class ControlManager:
         default_factory=list,
         init=False,
     )
+    external_widgets: list[object] = field(
+        default_factory=list,
+        init=False,
+    )
+    _visible: bool = field(default=True, init=False, repr=False)
 
     _cursor_x: int = field(default=0, init=False, repr=False)
     _cursor_y: int = field(default=0, init=False, repr=False)
@@ -879,6 +890,102 @@ class ControlManager:
         self._cursor_y = origin_y - height - self.panel_gap
         self._column_width = max(column_width, width)
         return panel
+
+    def register_widget(self, widget: object) -> object:
+        """Register an externally constructed control for managed visibility."""
+        if any(existing is widget for existing in self.external_widgets):
+            raise ValueError("Control widget is already registered.")
+        self.external_widgets.append(widget)
+        if not self._visible:
+            self._set_item_visible(widget, False)
+        return widget
+
+    def register_radio_group(self, group: str) -> tuple[object, ...]:
+        """Register one PyVista radio group, including its title actors."""
+        group = str(group)
+        if not group:
+            raise ValueError("Radio-button group name cannot be empty.")
+
+        widget_owner = getattr(self.plotter, "widgets", self.plotter)
+        widget_groups = getattr(
+            widget_owner,
+            "radio_button_widget_dict",
+            {},
+        )
+        title_groups = getattr(
+            widget_owner,
+            "radio_button_title_dict",
+            {},
+        )
+        items = tuple(widget_groups.get(group, ())) + tuple(
+            title_groups.get(group, ())
+        )
+        if not items:
+            raise ValueError(f"Unknown radio-button group: {group}")
+
+        for item in items:
+            if not any(
+                existing is item
+                for existing in self.external_widgets
+            ):
+                self.register_widget(item)
+        return items
+
+    def _control_items(self) -> Iterator[object]:
+        """Yield every owned control item once, preserving registration order."""
+        seen: set[int] = set()
+        for panel in self.panels:
+            for attribute in ("widgets", "text_actors"):
+                for item in getattr(panel, attribute, ()):
+                    identity = id(item)
+                    if identity not in seen:
+                        seen.add(identity)
+                        yield item
+        for item in self.external_widgets:
+            identity = id(item)
+            if identity not in seen:
+                seen.add(identity)
+                yield item
+
+    @staticmethod
+    def _set_item_visible(item: object, visible: bool) -> None:
+        """Apply visibility to VTK widgets, representations, and text actors."""
+        enabled = getattr(item, "SetEnabled", None)
+        if callable(enabled):
+            enabled(bool(visible))
+
+        representation_getter = getattr(item, "GetRepresentation", None)
+        if callable(representation_getter):
+            representation = representation_getter()
+            set_representation_visibility = getattr(
+                representation,
+                "SetVisibility",
+                None,
+            )
+            if callable(set_representation_visibility):
+                set_representation_visibility(bool(visible))
+
+        set_visibility = getattr(item, "SetVisibility", None)
+        if callable(set_visibility):
+            set_visibility(bool(visible))
+
+    def set_visible(self, visible: bool, *, render: bool = True) -> None:
+        """Set visibility for every managed interactive control."""
+        self._visible = bool(visible)
+        for item in self._control_items():
+            self._set_item_visible(item, self._visible)
+        if render:
+            self.request_render()
+
+    @contextmanager
+    def hidden(self) -> Iterator[None]:
+        """Temporarily hide all managed controls and restore them afterward."""
+        previous = self._visible
+        self.set_visible(False, render=False)
+        try:
+            yield
+        finally:
+            self.set_visible(previous, render=False)
 
     def request_render(self) -> None:
         """Render immediately, or once when the current batch completes."""

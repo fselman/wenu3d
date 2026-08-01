@@ -118,6 +118,17 @@ def test_global_panel_callbacks_update_scene() -> None:
     scene.plotter.render.assert_not_called()
 
 
+def test_public_local_scale_supports_deferred_rendering() -> None:
+    scene = object.__new__(CelestialScene)
+    scene.local_cartoon = Mock()
+    scene._local_scale = 1.0
+
+    scene.set_local_scale(0.2, render=False)
+
+    assert scene.local_scale == pytest.approx(0.2)
+    scene.local_cartoon.set_scale.assert_called_once_with(0.2, render=False)
+
+
 def test_scene_reset_camera_restores_canonical_view() -> None:
     scene = object.__new__(CelestialScene)
     scene.plotter = make_plotter()

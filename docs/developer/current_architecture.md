@@ -198,6 +198,13 @@ more annotation layers. `GlobalControlPanel` controls shell presence and
 local-object scale and provides a momentary camera-reset action. These panels
 also synchronize their widget representations from current model state.
 
+The manager can also register externally created widgets and complete PyVista
+radio groups. Radio-group registration includes both the button widgets and
+their separately owned title actors. Managed visibility therefore hides or
+restores the complete control presentation, rather than only the interactive
+button geometry. The `hidden()` context manager provides temporary control
+suppression while preserving the prior visibility state.
+
 The canonical example registers two grid panels, one shared annotation panel,
 and one global panel without specifying panel coordinates.
 
@@ -416,6 +423,24 @@ The public rendering lifecycle is:
 position, focal point, view-up vector, view angle, parallel-projection state,
 and parallel scale. `camera_state`, `set_camera()`, and `reset_camera()` make
 views explicit and reproducible.
+
+`save_sphere_frame()` is the reusable publication-export path for an
+interactive celestial-sphere view. It temporarily hides managed controls and
+the scene title, changes the output window to a square, and frames the
+celestial sphere with configurable fractional padding. Framing changes the
+parallel scale or perspective view angle analytically while retaining the
+interactive camera position and orientation. This is important because shell
+opacity is camera-dependent: moving the camera onto or inside the shell would
+invalidate the intended transparent-center and emphasized-limb material.
+After the screenshot, the method restores the window size, camera, title, and
+control visibility even if export fails.
+
+The release example uses this path to export a numbered sequence from one
+interactive viewport. The first image preserves the user-selected local
+scale; subsequent images change only the requested local scale. The example
+chooses whether ordinary screenshots include controls, while sphere-frame
+exports consistently suppress every managed control, including radio-group
+titles.
 
 The plotter supports interactive and off-screen construction. `save()` accepts
 an optional camera state, export-specific dimensions, and opaque RGB or

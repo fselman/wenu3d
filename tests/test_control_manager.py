@@ -20,6 +20,8 @@ class FakePanel:
     control_size: tuple[int, int] = (100, 150)
     add_count: int = 0
     sync_count: int = 0
+    widgets: tuple[object, ...] = ()
+    text_actors: tuple[object, ...] = ()
 
     def add(self) -> None:
         self.add_count += 1
@@ -251,3 +253,62 @@ def test_control_manager_syncs_panels_with_one_render() -> None:
     assert first.sync_count == 1
     assert second.sync_count == 1
     plotter.render.assert_called_once_with()
+
+
+def test_control_manager_hides_widgets_representations_and_text() -> None:
+    manager, plotter = make_manager()
+    widget = Mock()
+    text = Mock(spec=["SetVisibility"])
+    panel = FakePanel(widgets=(widget,), text_actors=(text,))
+    manager.register_panel(panel)
+    plotter.reset_mock()
+
+    manager.set_visible(False)
+
+    widget.SetEnabled.assert_called_once_with(False)
+    widget.GetRepresentation.return_value.SetVisibility.assert_called_once_with(False)
+    text.SetVisibility.assert_called_once_with(False)
+    plotter.render.assert_called_once_with()
+
+
+def test_control_manager_temporarily_hides_registered_external_widget() -> None:
+    manager, _ = make_manager()
+    widget = Mock()
+    manager.register_widget(widget)
+
+    with manager.hidden():
+        widget.SetEnabled.assert_called_with(False)
+        widget.GetRepresentation.return_value.SetVisibility.assert_called_with(False)
+
+    widget.SetEnabled.assert_called_with(True)
+    widget.GetRepresentation.return_value.SetVisibility.assert_called_with(True)
+
+
+def test_control_manager_registers_radio_buttons_and_their_titles() -> None:
+    manager, plotter = make_manager()
+    first_button = Mock()
+    second_button = Mock()
+    first_title = Mock()
+    second_title = Mock()
+    plotter.widgets.radio_button_widget_dict = {
+        "export": [first_button, second_button],
+    }
+    plotter.widgets.radio_button_title_dict = {
+        "export": [first_title, second_title],
+    }
+
+    items = manager.register_radio_group("export")
+
+    assert items == (
+        first_button,
+        second_button,
+        first_title,
+        second_title,
+    )
+    assert manager.external_widgets == list(items)
+
+
+def test_control_manager_rejects_duplicate_external_widget() -> None:
+    manager, _ = make_manager()
+    widget = Mock()
+    manager.register_widget(widget)
