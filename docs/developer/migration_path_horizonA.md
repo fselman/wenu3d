@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.7
+**Version:** 1.8
 **Date:** 2026-07-31
-**Status:** M10 completed; M11 product hardening in progress through M11.3
+**Status:** M10 completed; M11 product hardening in progress through M11.4
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -541,7 +541,8 @@ Produce a standalone Horizon A release candidate.
 - complete quick-start, interactive, batch, annotation, control, coordinate,
   observer, horizon, parallax, and extension documentation (completed by
   M11.3);
-- verify packaging, supported Python, errors, and absence of stale modules;
+- verify packaging, supported Python, errors, and absence of stale modules
+  (completed by M11.4);
 - run the full gate in a clean environment.
 
 ### Completed checkpoints
@@ -557,6 +558,9 @@ Produce a standalone Horizon A release candidate.
   interactive, batch, annotation, control, coordinate, observer, horizon,
   target-line, parallax, comparison, extension, and cleanup workflows with
   their scientific interpretation limits.
+- **M11.4 — Packaging verification:** distribution metadata, Python support,
+  clean-environment commands, documentation inputs, complete module imports,
+  and absence of removed modules and examples are explicit and tested.
 
 ### Gate
 

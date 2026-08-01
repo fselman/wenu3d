@@ -8,8 +8,11 @@ interactive planetarium.
 
 ## Install
 
+Wenu3D requires Python 3.11 or newer. Python 3.11 is the explicitly verified
+Horizon A release environment.
+
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[test]"
 ```
 
 ## Run the canonical example
@@ -139,6 +142,10 @@ far-side visibility, ordering, annotation, occlusion, and export semantics.
 The [user guide](docs/user_guide.md) covers quick-start, interactive, batch,
 annotation, control, coordinate, observer, horizon, parallax, comparison, and
 extension workflows.
+
+The [packaging guide](docs/packaging.md) defines development installation,
+distribution building, clean-environment verification, supported Python, and
+the shipped module inventory.
 
 Developer documentation is in `docs/developer/`:
 

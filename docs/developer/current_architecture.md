@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.42
+**Version:** 0.43
 **Date:** 2026-07-31
-**Status:** M11 product hardening in progress through M11.3 on `feature/interactive-grid-controls`
+**Status:** M11 product hardening in progress through M11.4 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -893,6 +893,13 @@ equatorial coordinates, observers and local composition, ideal horizons,
 target lines, parallax, scale comparisons, extension, and lifecycle cleanup.
 The guide explicitly preserves the direction-versus-distance and
 ideal-horizon-versus-local-platform distinctions.
+
+M11.4 completes repository-level packaging verification. Project metadata now
+declares the README, Python 3.11 classifier, astronomy topic, and repository
+and documentation URLs. `docs/packaging.md` defines editable, distribution,
+wheel, and clean-environment checks. Focused tests validate metadata and
+documentation inputs, import every shipped package module, and guard the
+intentional absence of removed modules and the obsolete example.
 
 ## 13. Strengths
 
