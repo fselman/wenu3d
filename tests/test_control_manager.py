@@ -7,6 +7,7 @@ from wenu3d.controls import (
     ControlManager,
     GridControlPanel,
     PanelPlacement,
+    VisibilityControlPanel,
 )
 from wenu3d.frames import horizontal_frame
 from wenu3d.grid import GridLayer
@@ -73,6 +74,27 @@ def test_scene_registers_grid_panel_without_coordinates() -> None:
 
     assert isinstance(panel, GridControlPanel)
     scene.controls.register_panel.assert_called_once_with(panel)
+
+
+def test_visibility_panel_sets_and_synchronizes_caller_capability() -> None:
+    plotter = Mock()
+    widget = Mock()
+    plotter.add_checkbox_button_widget.return_value = widget
+    state = {"visible": True}
+    panel = VisibilityControlPanel(
+        plotter=plotter,
+        set_visible=lambda value: state.__setitem__("visible", value),
+        get_visible=lambda: state["visible"],
+        label="Mostrar la Tierra",
+        title="Contexto local",
+    )
+
+    panel.add()
+    panel._set_visible(False)
+    panel.sync_from_model()
+
+    assert not state["visible"]
+    widget.GetRepresentation().SetState.assert_called_with(0)
 
 
 def test_grid_panel_uses_initial_model_visibility() -> None:

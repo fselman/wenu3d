@@ -16,6 +16,8 @@ from .controls import (
     ControlManager,
     GlobalControlPanel,
     PanelPlacement,
+    VisibilityControlPanel,
+    ScalarControlPanel,
 )
 from .coordinates import (
     EquatorialCoordinateGeometry,
@@ -23,6 +25,8 @@ from .coordinates import (
     EquatorialLongitudeKind,
     HorizontalCoordinateGeometry,
     HorizontalCoordinateIllustration,
+    HorizontalLabels,
+    HorizontalReferenceIllustration,
 )
 from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .geography import earth_fixed_frame, geographic_position, local_enu_frame
@@ -88,8 +92,12 @@ __all__ = [
     "EquatorialLongitudeKind",
     "HorizontalCoordinateGeometry",
     "HorizontalCoordinateIllustration",
+    "HorizontalLabels",
+    "HorizontalReferenceIllustration",
     "GlobalControlPanel",
     "PanelPlacement",
+    "VisibilityControlPanel",
+    "ScalarControlPanel",
     "SphericalFrame",
     "horizontal_frame",
     "equatorial_frame",

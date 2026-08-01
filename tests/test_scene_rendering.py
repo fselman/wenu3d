@@ -107,6 +107,22 @@ def test_scene_configures_plotter_for_off_screen_rendering() -> None:
     )
 
 
+def test_scene_adds_generic_visibility_control_for_scene_object() -> None:
+    scene = make_scene()
+    scene.controls.register_panel.side_effect = lambda panel: panel
+    from wenu3d.scene_object import SceneObject
+    target = SceneObject(name="earth")
+    panel = scene.add_visibility_control(
+        target,
+        label="Mostrar la Tierra",
+        title="Contexto local",
+    )
+
+    assert panel.label == "Mostrar la Tierra"
+    assert panel.title == "Contexto local"
+    scene.controls.register_panel.assert_called_once_with(panel)
+
+
 def test_save_renders_opaque_image_at_configured_size() -> None:
     scene = make_scene()
     scene.render = Mock()

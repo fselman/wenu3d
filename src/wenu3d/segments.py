@@ -59,6 +59,7 @@ class SegmentStyle:
     color: str = "#444444"
     width: float = 2.0
     opacity: float = 1.0
+    tube_radius: float | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.color, str) or not self.color.strip():
@@ -66,6 +67,7 @@ class SegmentStyle:
 
         width = float(self.width)
         opacity = float(self.opacity)
+        tube_radius = self.tube_radius
         if not np.isfinite(width) or width <= 0.0:
             raise ValueError(
                 "Segment width must be finite and greater than zero."
@@ -74,10 +76,17 @@ class SegmentStyle:
             raise ValueError(
                 "Segment opacity must be finite and between zero and one."
             )
+        if tube_radius is not None:
+            tube_radius = float(tube_radius)
+            if not np.isfinite(tube_radius) or tube_radius <= 0.0:
+                raise ValueError(
+                    "Segment tube radius must be finite and positive."
+                )
 
         object.__setattr__(self, "color", self.color.strip())
         object.__setattr__(self, "width", width)
         object.__setattr__(self, "opacity", opacity)
+        object.__setattr__(self, "tube_radius", tube_radius)
 
 
 @dataclass(frozen=True)

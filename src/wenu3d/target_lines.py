@@ -23,6 +23,7 @@ class TargetLineIllustration(IllustrationLayer):
         target: CelestialTarget,
         local_cartoon: LocalCartoonLayer | None = None,
         observer_anchors: Mapping[str, str] | None = None,
+        include_marker: bool = True,
         include_centered_direction: bool = True,
         direction_style: SegmentStyle | None = None,
         sight_line_style: SegmentStyle | None = None,
@@ -37,6 +38,8 @@ class TargetLineIllustration(IllustrationLayer):
             raise TypeError("observer_anchors must be a mapping.")
         if not isinstance(include_centered_direction, (bool, np.bool_)):
             raise TypeError("include_centered_direction must be a boolean.")
+        if not isinstance(include_marker, (bool, np.bool_)):
+            raise TypeError("include_marker must be a boolean.")
         if direction_style is not None and not isinstance(
             direction_style,
             SegmentStyle,
@@ -78,17 +81,24 @@ class TargetLineIllustration(IllustrationLayer):
         )
         self.include_centered_direction = bool(include_centered_direction)
 
-        self.marker_object: MarkerObject = self.add_marker(
-            f"{name}.target",
-            target.as_marker(),
-        )
+        self.include_marker = bool(include_marker)
+        self._populate_target_objects()
+
+    def _populate_target_objects(self) -> None:
+        """Create renderer objects derived from the current target."""
+        self.marker_object: MarkerObject | None = None
+        if self.include_marker:
+            self.marker_object = self.add_marker(
+                f"{self.name}.target",
+                self.target.as_marker(),
+            )
         self.centered_direction_object: SegmentObject | None = None
         if self.include_centered_direction:
             self.centered_direction_object = self.add_segment(
-                f"{name}.centered_direction",
+                f"{self.name}.centered_direction",
                 LineSegment(
                     start=(0.0, 0.0, 0.0),
-                    end=target.display_position,
+                    end=self.target.display_position,
                     style=self.direction_style,
                 ),
             )
@@ -97,15 +107,34 @@ class TargetLineIllustration(IllustrationLayer):
         if self.local_cartoon is not None:
             for observer, anchor in self.observer_anchors.items():
                 obj = self.add_segment(
-                    f"{name}.sight_line.{observer}",
+                    f"{self.name}.sight_line.{observer}",
                     self.local_cartoon.make_observer_sight_line(
                         observer=observer,
                         anchor=anchor,
-                        target_position=target.display_position,
+                        target_position=self.target.display_position,
                         style=self.sight_line_style,
                     ),
                 )
                 self.sight_line_objects[observer] = obj
+
+    def set_target(
+        self,
+        target: CelestialTarget,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Replace the semantic target and refresh every derived line."""
+        if not isinstance(target, CelestialTarget):
+            raise TypeError("target must be a CelestialTarget.")
+        plotter = self.attached_plotter
+        self.detach(render=False)
+        self.objects.clear()
+        self.target = target
+        self._populate_target_objects()
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
 
     def build(self, plotter) -> None:
         super().build(plotter)

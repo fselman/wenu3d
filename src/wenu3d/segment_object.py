@@ -42,6 +42,8 @@ class SegmentObject(SceneObject):
 
         self._prepare_build(plotter)
         mesh = pv.Line(self.segment.start, self.segment.end)
+        if self.segment.style.tube_radius is not None:
+            mesh = mesh.tube(radius=self.segment.style.tube_radius)
         self._mesh = mesh
 
         actor = plotter.add_mesh(

@@ -36,6 +36,27 @@ def test_shell_radius_changes_display_position_not_direction() -> None:
     assert target.shell_radius == 1.0
 
 
+def test_direction_replacement_preserves_target_presentation() -> None:
+    style = MarkerStyle(shape="star", color="gold", radius=0.08)
+    target = CelestialTarget(
+        name="star",
+        direction=(1.0, 0.0, 0.0),
+        shell_radius=3.0,
+        marker_style=style,
+        visible=False,
+    )
+
+    redirected = target.with_direction((0.0, 3.0, 4.0))
+
+    assert redirected is not target
+    assert redirected.direction == pytest.approx((0.0, 0.6, 0.8))
+    assert redirected.name == target.name
+    assert redirected.shell_radius == target.shell_radius
+    assert redirected.marker_style is style
+    assert redirected.visible is False
+    assert target.direction == (1.0, 0.0, 0.0)
+
+
 def test_target_derives_finite_marker_without_conflating_records() -> None:
     style = MarkerStyle(
         shape="star",

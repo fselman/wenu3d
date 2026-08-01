@@ -69,3 +69,7 @@ class CelestialTarget:
     def at_shell_radius(self, shell_radius: float) -> CelestialTarget:
         """Return this target displayed at another illustrative radius."""
         return replace(self, shell_radius=shell_radius)
+
+    def with_direction(self, direction: Sequence[float]) -> CelestialTarget:
+        """Return this target with a new normalized celestial direction."""
+        return replace(self, direction=direction)

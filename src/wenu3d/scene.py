@@ -16,6 +16,8 @@ from .controls import (
     ControlManager,
     GlobalControlPanel,
     GridControlPanel,
+    VisibilityControlPanel,
+    ScalarControlPanel,
 )
 from .earth import EarthObject
 from .frames import horizontal_frame, equatorial_frame
@@ -308,7 +310,7 @@ class CelestialScene:
 
     def add_annotation_controls(
         self,
-        *layers: AnnotationLayer,
+        *layers: object,
     ) -> AnnotationControlPanel:
         panel = AnnotationControlPanel(
             plotter=self.plotter,
@@ -325,6 +327,45 @@ class CelestialScene:
             get_sphere_presence=lambda: self.shell.presence,
             get_local_scale=lambda: self._local_scale,
             reset_camera=self.reset_camera,
+        )
+        return self.controls.register_panel(panel)
+
+    def add_visibility_control(
+        self,
+        target: SceneObject,
+        *,
+        label: str,
+        title: str = "Visibility",
+    ) -> VisibilityControlPanel:
+        """Add a reusable visibility checkbox for one scene object."""
+        if not isinstance(target, SceneObject):
+            raise TypeError("target must be a SceneObject.")
+        panel = VisibilityControlPanel(
+            plotter=self.plotter,
+            set_visible=target.set_visible,
+            get_visible=lambda: target.visible,
+            label=label,
+            title=title,
+        )
+        return self.controls.register_panel(panel)
+
+    def add_scalar_control(
+        self,
+        *,
+        set_value,
+        get_value,
+        title: str,
+        value_range: tuple[float, float],
+        value_format: str = "%.2f",
+    ) -> ScalarControlPanel:
+        """Add a reusable slider for a scalar model capability."""
+        panel = ScalarControlPanel(
+            plotter=self.plotter,
+            set_value=set_value,
+            get_value=get_value,
+            title=title,
+            value_range=value_range,
+            value_format=value_format,
         )
         return self.controls.register_panel(panel)
 

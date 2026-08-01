@@ -104,6 +104,32 @@ def test_centered_direction_starts_at_origin_and_ends_at_marker() -> None:
     )
 
 
+def test_attached_target_replacement_refreshes_marker_and_lines() -> None:
+    illustration = make_illustration()
+    plotter = pv.Plotter(off_screen=True)
+    updated = illustration.target.with_direction((1.0, 0.0, 1.0))
+
+    try:
+        illustration.build(plotter)
+        illustration.set_target(updated, render=False)
+
+        assert illustration.target is updated
+        assert illustration.centered_direction_object.segment.end == (
+            updated.display_position
+        )
+        for obj in illustration.sight_line_objects.values():
+            assert obj.segment.end == updated.display_position
+        assert illustration.attached_plotter is plotter
+    finally:
+        illustration.detach(render=False)
+        plotter.close()
+
+
+def test_target_replacement_validates_target_type() -> None:
+    with pytest.raises(TypeError, match="target"):
+        make_illustration().set_target(object())
+
+
 def test_sight_lines_resolve_transformed_anchors_and_share_endpoint() -> None:
     illustration = make_illustration()
     local = illustration.local_cartoon
@@ -266,6 +292,12 @@ def test_target_line_illustration_validates_explicit_composition() -> None:
             target=make_target(),
             include_centered_direction=1,
         )
+    with pytest.raises(TypeError, match="include_marker"):
+        TargetLineIllustration(
+            name="bad",
+            target=make_target(),
+            include_marker=1,
+        )
     for field_name in ("direction_style", "sight_line_style"):
         with pytest.raises(TypeError, match=field_name):
             TargetLineIllustration(
@@ -273,6 +305,36 @@ def test_target_line_illustration_validates_explicit_composition() -> None:
                 target=make_target(),
                 **{field_name: object()},
             )
+
+
+def test_centered_direction_can_reuse_an_external_target_marker() -> None:
+    illustration = TargetLineIllustration(
+        name="direction_only",
+        target=make_target(),
+        include_marker=False,
+    )
+
+    assert illustration.marker_object is None
+    assert illustration.centered_direction_object is not None
+    assert illustration.objects == [illustration.centered_direction_object]
+
+
+def test_centered_direction_supports_visible_three_dimensional_tube() -> None:
+    style = SegmentStyle(color="black", width=4.0, tube_radius=0.006)
+    illustration = TargetLineIllustration(
+        name="tubed_direction",
+        target=make_target(),
+        include_marker=False,
+        direction_style=style,
+    )
+    plotter = pv.Plotter(off_screen=True)
+    try:
+        illustration.build(plotter)
+        assert illustration.centered_direction_object.mesh.n_cells > 1
+        assert illustration.centered_direction_object.segment.style is style
+    finally:
+        illustration.detach(render=False)
+        plotter.close()
 
 
 def test_target_line_illustration_rejects_invalid_or_unknown_anchors() -> None:

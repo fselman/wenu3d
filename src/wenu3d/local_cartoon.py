@@ -3,12 +3,15 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol
 
+import numpy as np
+
 from .earth import EarthObject
 from .layer import Layer
 from .observer import ObserverComposition, ObserverRepresentation
 from .scene_object import SceneObject
 from .segments import SegmentStyle, SightLine
 from .transforms import LocalCartoonTransform
+from .geometry import unit
 
 
 class LocalTransformDependent(Protocol):
@@ -204,6 +207,39 @@ class LocalCartoonLayer(Layer):
             scale=self.transform.scale,
         )
         self.set_transform(transform, render=render)
+
+    def observer_anchor_height(self, *, observer: str, anchor: str, axis) -> float:
+        """Return a transformed anchor's signed coordinate along ``axis``."""
+        return float(self.observer_anchor(observer, anchor) @ unit(axis))
+
+    def set_observer_anchor_height(
+        self,
+        *,
+        observer: str,
+        anchor: str,
+        axis,
+        height: float,
+        render: bool = True,
+    ) -> None:
+        """Translate the local cartoon along ``axis`` to a signed height."""
+        axis = unit(axis)
+        height = float(height)
+        current = self.observer_anchor_height(
+            observer=observer,
+            anchor=anchor,
+            axis=axis,
+        )
+        translation = (
+            np.asarray(self.transform.translation)
+            + (height - current) * axis
+        )
+        self.set_transform(
+            LocalCartoonTransform(
+                translation=translation,
+                scale=self.transform.scale,
+            ),
+            render=render,
+        )
 
     def build(self, plotter) -> None:
         super().build(plotter)

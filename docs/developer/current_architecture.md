@@ -938,6 +938,18 @@ completion criteria to repository evidence and defines the repository,
 distribution-build, installed-wheel, clean-environment, canonical-visual, and
 final-status gates. Horizon B Wenu integration remains separately planned.
 
+Post-release-candidate examples exercise the same public object lifecycle as
+library clients. `CelestialTarget.with_direction()` creates a new semantic
+direction without mutating a target record. Horizontal-coordinate and
+target-line illustrations accept such a replacement through `set_target()`;
+they discard and rebuild only their own derived marker, curves, annotations,
+and segments while preserving styles, visibility, attachment, and optional
+render batching. Interactive examples can therefore synchronize several
+illustrations from scalar controls without manipulating PyVista actors.
+Independent reference lines in an ideal plane remain ordinary
+renderer-neutral `LineSegment` objects grouped by an `IllustrationLayer`, and
+use the generic scene-object visibility control.
+
 ## 13. Strengths
 
 1. Compact, understandable spherical geometry.

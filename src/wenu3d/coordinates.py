@@ -19,6 +19,31 @@ EquatorialLongitudeKind = Literal["diagrammatic", "right_ascension"]
 
 
 @dataclass(frozen=True)
+class HorizontalLabels:
+    """Configurable terminology for horizontal-coordinate illustrations."""
+
+    north: str = "N"
+    east: str = "E"
+    south: str = "S"
+    west: str = "W"
+    zenith: str = "Zenith"
+    altitude: str = "Altitude"
+    azimuth: str = "Azimuth (North through East)"
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "north", "east", "south", "west", "zenith",
+            "altitude", "azimuth",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Horizontal label {field_name} must be non-empty."
+                )
+            object.__setattr__(self, field_name, value.strip())
+
+
+@dataclass(frozen=True)
 class HorizontalCoordinateGeometry:
     """Centered altitude and azimuth geometry for one celestial target."""
 
@@ -119,6 +144,24 @@ class HorizontalCoordinateGeometry:
             end_deg=self.azimuth_deg,
             radius=self.target.shell_radius,
             samples=self.samples,
+        )
+
+    @property
+    def vertical_circle(self) -> SphericalArc:
+        """Complete great circle through the target and Zenith."""
+        foot = np.asarray(self._foot_direction)
+        vertical_frame = SphericalFrame(
+            name=f"{self.target.name}.vertical_circle",
+            pole=np.cross(foot, self.frame.pole),
+            zero=foot,
+            east=self.frame.pole,
+        )
+        return SphericalArc.great_circle(
+            vertical_frame,
+            start_deg=0.0,
+            end_deg=360.0,
+            radius=self.target.shell_radius,
+            samples=max(self.samples, 181),
         )
 
 
@@ -402,9 +445,12 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
         samples: int = 101,
         altitude_style: CurveStyle | None = None,
         azimuth_style: CurveStyle | None = None,
+        vertical_circle_style: CurveStyle | None = None,
         annotation_style: AnnotationStyle | None = None,
+        labels: HorizontalLabels | None = None,
         angle_decimals: int = 1,
         show_labels: bool = True,
+        show_vertical_circle: bool = False,
         visible: bool = True,
         opacity: float = 1.0,
     ) -> None:
@@ -426,11 +472,20 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
             CurveStyle,
         ):
             raise TypeError("azimuth_style must be a CurveStyle.")
+        if vertical_circle_style is not None and not isinstance(
+            vertical_circle_style,
+            CurveStyle,
+        ):
+            raise TypeError("vertical_circle_style must be a CurveStyle.")
         if annotation_style is not None and not isinstance(
             annotation_style,
             AnnotationStyle,
         ):
             raise TypeError("annotation_style must be an AnnotationStyle.")
+        if labels is not None and not isinstance(labels, HorizontalLabels):
+            raise TypeError("labels must be HorizontalLabels.")
+        if not isinstance(show_vertical_circle, (bool, np.bool_)):
+            raise TypeError("show_vertical_circle must be a boolean.")
 
         super().__init__(name=name, visible=visible, opacity=opacity)
         self.target = target
@@ -449,30 +504,51 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
             width=4.0,
             arrowheads="end",
         )
+        self.vertical_circle_style = vertical_circle_style or CurveStyle(
+            color="#687784",
+            width=1.0,
+            opacity=0.28,
+        )
         self.annotation_style = annotation_style or AnnotationStyle()
+        self.labels = labels or HorizontalLabels()
         self.angle_decimals = int(angle_decimals)
         self.show_labels = bool(show_labels)
+        self.show_vertical_circle = bool(show_vertical_circle)
+
+        self._populate_target_objects()
+
+    def _populate_target_objects(self) -> None:
+        """Create renderer objects derived from the current target."""
 
         self.marker_object: MarkerObject = self.add_marker(
-            f"{name}.target",
-            target.as_marker(),
+            f"{self.name}.target",
+            self.target.as_marker(),
         )
+        self.vertical_circle_object: CurveObject | None = None
         self.altitude_curve_object: CurveObject | None = None
         self.azimuth_curve_object: CurveObject | None = None
         self.altitude_annotation: AnnotationObject | None = None
         self.azimuth_annotation: AnnotationObject | None = None
 
+        if self.show_vertical_circle:
+            self.vertical_circle_object = self.add_curve(
+                f"{self.name}.vertical_circle",
+                self.geometry.vertical_circle.to_curve(
+                    style=self.vertical_circle_style,
+                ),
+            )
+
         altitude_arc = self.geometry.altitude_arc
         if altitude_arc is not None:
             self.altitude_curve_object = self.add_curve(
-                f"{name}.altitude",
+                f"{self.name}.altitude",
                 altitude_arc.to_curve(style=self.altitude_style),
             )
             if self.show_labels:
                 self.altitude_annotation = self._add_angle_annotation(
-                    name=f"{name}.altitude.label",
+                    name=f"{self.name}.altitude.label",
                     text=(
-                        "Altitude = "
+                        f"{self.labels.altitude} = "
                         f"{self.geometry.altitude_deg:.{self.angle_decimals}f}°"
                     ),
                     curve_object=self.altitude_curve_object,
@@ -481,18 +557,42 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
         azimuth_arc = self.geometry.azimuth_arc
         if azimuth_arc is not None:
             self.azimuth_curve_object = self.add_curve(
-                f"{name}.azimuth",
+                f"{self.name}.azimuth",
                 azimuth_arc.to_curve(style=self.azimuth_style),
             )
             if self.show_labels:
                 self.azimuth_annotation = self._add_angle_annotation(
-                    name=f"{name}.azimuth.label",
+                    name=f"{self.name}.azimuth.label",
                     text=(
-                        "Azimuth (North through East) = "
+                        f"{self.labels.azimuth} = "
                         f"{self.geometry.azimuth_deg:.{self.angle_decimals}f}°"
                     ),
                     curve_object=self.azimuth_curve_object,
                 )
+
+    def set_target(
+        self,
+        target: CelestialTarget,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Replace the semantic target and refresh all derived components."""
+        if not isinstance(target, CelestialTarget):
+            raise TypeError("target must be a CelestialTarget.")
+        plotter = self.attached_plotter
+        self.detach(render=False)
+        self.objects.clear()
+        self.target = target
+        self.geometry = HorizontalCoordinateGeometry(
+            target=target,
+            frame=self.geometry.frame,
+            samples=self.geometry.samples,
+        )
+        self._populate_target_objects()
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
 
     def _add_angle_annotation(
         self,
@@ -514,3 +614,107 @@ class HorizontalCoordinateIllustration(IllustrationLayer):
                 associated_with=curve_object.name,
             ),
         )
+
+
+class HorizontalReferenceIllustration(IllustrationLayer):
+    """Geometric horizon, meridian, and named horizontal directions."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        frame: SphericalFrame,
+        radius: float,
+        labels: HorizontalLabels | None = None,
+        horizon_style: CurveStyle | None = None,
+        meridian_style: CurveStyle | None = None,
+        annotation_style: AnnotationStyle | None = None,
+        samples: int = 361,
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        if not isinstance(frame, SphericalFrame):
+            raise TypeError("frame must be a SphericalFrame.")
+        radius = float(radius)
+        if not np.isfinite(radius) or radius <= 0.0:
+            raise ValueError("radius must be finite and greater than zero.")
+        labels = labels or HorizontalLabels()
+        if not isinstance(labels, HorizontalLabels):
+            raise TypeError("labels must be HorizontalLabels.")
+        for field_name, style, style_type in (
+            ("horizon_style", horizon_style, CurveStyle),
+            ("meridian_style", meridian_style, CurveStyle),
+            ("annotation_style", annotation_style, AnnotationStyle),
+        ):
+            if style is not None and not isinstance(style, style_type):
+                raise TypeError(f"{field_name} must be a {style_type.__name__}.")
+
+        super().__init__(name=name, visible=visible, opacity=opacity)
+        self.frame = frame
+        self.radius = radius
+        self.labels = labels
+        self.horizon_style = horizon_style or CurveStyle(
+            color="#40586c",
+            width=2.4,
+            opacity=0.72,
+        )
+        self.meridian_style = meridian_style or CurveStyle(
+            color="#596773",
+            width=1.5,
+            opacity=0.48,
+        )
+        self.annotation_style = annotation_style or AnnotationStyle(
+            color="#263746",
+            font_size=16,
+            bold=True,
+        )
+
+        self.horizon_object = self.add_curve(
+            f"{name}.horizon",
+            SphericalArc.great_circle(
+                frame,
+                0.0,
+                360.0,
+                radius=radius,
+                samples=samples,
+            ).to_curve(style=self.horizon_style),
+        )
+        meridian_frame = SphericalFrame(
+            name=f"{name}.meridian",
+            pole=frame.east,
+            zero=frame.zero,
+            east=frame.pole,
+        )
+        self.meridian_object = self.add_curve(
+            f"{name}.meridian",
+            SphericalArc.great_circle(
+                meridian_frame,
+                0.0,
+                360.0,
+                radius=radius,
+                samples=samples,
+            ).to_curve(style=self.meridian_style),
+        )
+        self.annotations: dict[str, AnnotationObject] = {}
+        for key, text, direction in (
+            ("north", labels.north, frame.zero),
+            ("east", labels.east, frame.east),
+            ("south", labels.south, -frame.zero),
+            ("west", labels.west, -frame.east),
+            ("zenith", labels.zenith, frame.pole),
+        ):
+            anchor = radius * direction
+            self.annotations[key] = self.add_annotation(
+                f"{name}.{key}.label",
+                Annotation(
+                    text=text,
+                    anchor=anchor,
+                    offset=0.045 * radius * direction,
+                    style=self.annotation_style,
+                    associated_with=(
+                        self.meridian_object.name
+                        if key == "zenith"
+                        else self.horizon_object.name
+                    ),
+                ),
+            )

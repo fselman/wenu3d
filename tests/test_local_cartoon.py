@@ -282,6 +282,36 @@ def test_place_observer_anchor_at_origin_updates_model_and_actor() -> None:
     plotter.render.assert_called_once_with()
 
 
+def test_observer_anchor_height_translates_only_along_requested_axis() -> None:
+    layer = LocalCartoonLayer(
+        name="local",
+        earth=make_earth(),
+        transform=LocalCartoonTransform(
+            translation=(0.2, -0.3, 0.4),
+            scale=0.5,
+        ),
+    )
+    layer.add_observer(make_composition("navigator"))
+    before = np.asarray(layer.transform.translation)
+
+    layer.set_observer_anchor_height(
+        observer="navigator",
+        anchor="feet",
+        axis=(0.0, 0.0, 1.0),
+        height=-0.1,
+        render=False,
+    )
+
+    assert layer.observer_anchor_height(
+        observer="navigator",
+        anchor="feet",
+        axis=(0.0, 0.0, 1.0),
+    ) == pytest.approx(-0.1)
+    after = np.asarray(layer.transform.translation)
+    np.testing.assert_allclose(after[:2], before[:2])
+    assert layer.transform.scale == 0.5
+
+
 def test_placement_modes_validate_observer_and_anchor_before_update() -> None:
     transform = LocalCartoonTransform(
         translation=(1.0, 2.0, 3.0),

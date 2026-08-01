@@ -15,6 +15,7 @@ CheckboxCallback = Callable[[bool], None]
 SliderCallback = Callable[[float], None]
 ValueGetter = Callable[[], float]
 ActionCallback = Callable[[], None]
+VisibilityGetter = Callable[[], bool]
 
 PanelT = TypeVar("PanelT", bound="ControlPanel")
 
@@ -29,6 +30,121 @@ class ControlPanel(Protocol):
     def add(self) -> None: ...
 
 
+@dataclass
+class VisibilityControlPanel:
+    """Managed checkbox for one caller-supplied visibility capability."""
+
+    plotter: pv.Plotter
+    set_visible: CheckboxCallback
+    get_visible: VisibilityGetter
+    label: str
+    title: str = "Visibility"
+    origin_x: int = 20
+    origin_y: int = 960
+    width: int = 260
+    height: int = 78
+    checkbox_size: int = 22
+    font_size: int = 11
+    widgets: list[object] = field(default_factory=list, init=False)
+    text_actors: list[object] = field(default_factory=list, init=False)
+    _widget: object | None = field(default=None, init=False, repr=False)
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    def add(self) -> None:
+        self.text_actors.append(self.plotter.add_text(
+            self.title,
+            position=(self.origin_x, self.origin_y),
+            font_size=self.font_size + 2,
+            color="#202020",
+        ))
+        y = self.origin_y - 38
+        self._widget = self.plotter.add_checkbox_button_widget(
+            callback=self._set_visible,
+            value=bool(self.get_visible()),
+            position=(self.origin_x, y),
+            size=self.checkbox_size,
+            border_size=2,
+            color_on="#506070",
+            color_off="#d4d4d4",
+            background_color="#f7f6f2",
+        )
+        self.widgets.append(self._widget)
+        self.text_actors.append(self.plotter.add_text(
+            self.label,
+            position=(self.origin_x + self.checkbox_size + 7, y),
+            font_size=self.font_size,
+            color="#202020",
+        ))
+
+    def _set_visible(self, visible: bool) -> None:
+        self.set_visible(bool(visible))
+
+    def sync_from_model(self) -> None:
+        if self._widget is not None:
+            self._widget.GetRepresentation().SetState(
+                int(bool(self.get_visible()))
+            )
+
+
+@dataclass
+class ScalarControlPanel:
+    """Managed slider for one caller-supplied scalar capability."""
+
+    plotter: pv.Plotter
+    set_value: SliderCallback
+    get_value: ValueGetter
+    title: str
+    value_range: tuple[float, float]
+    value_format: str = "%.2f"
+    origin_x: int = 20
+    origin_y: int = 960
+    width: int = 300
+    height: int = 88
+    widgets: list[object] = field(default_factory=list, init=False)
+    _widget: object | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        lower, upper = (float(value) for value in self.value_range)
+        if lower >= upper:
+            raise ValueError("Scalar control range must increase.")
+        self.value_range = (lower, upper)
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    def add(self) -> None:
+        window_width, window_height = (
+            float(value) for value in self.plotter.window_size
+        )
+        y = self.origin_y - 35
+        self._widget = self.plotter.add_slider_widget(
+            callback=self.set_value,
+            rng=self.value_range,
+            value=float(self.get_value()),
+            title=self.title,
+            pointa=((self.origin_x + 10) / window_width, y / window_height),
+            pointb=(
+                (self.origin_x + self.width - 10) / window_width,
+                y / window_height,
+            ),
+            style="modern",
+            fmt=self.value_format,
+            title_height=0.014,
+            slider_width=0.018,
+            tube_width=0.008,
+        )
+        _configure_slider_text(self._widget)
+        self.widgets.append(self._widget)
+
+    def sync_from_model(self) -> None:
+        if self._widget is not None:
+            self._widget.GetRepresentation().SetValue(float(self.get_value()))
+
+
 def _configure_slider_text(widget: object) -> None:
     """Keep the numeric label inside the panel's declared footprint."""
     representation = widget.GetRepresentation()
@@ -40,7 +156,7 @@ class AnnotationControlPanel:
     """Managed visibility and text-size controls for annotation layers."""
 
     plotter: pv.Plotter
-    layers: Sequence[AnnotationLayer]
+    layers: Sequence[object]
 
     origin_x: int = 20
     origin_y: int = 960
@@ -74,10 +190,15 @@ class AnnotationControlPanel:
             )
         if not all(
             isinstance(layer, AnnotationLayer)
+            or (
+                hasattr(layer, "font_size_scale")
+                and callable(getattr(layer, "set_visible", None))
+                and callable(getattr(layer, "set_font_size_scale", None))
+            )
             for layer in self.layers
         ):
             raise TypeError(
-                "Annotation controls require AnnotationLayer instances."
+                "Annotation controls require annotation-size capabilities."
             )
 
     @property
