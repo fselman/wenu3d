@@ -455,6 +455,13 @@ chooses whether ordinary screenshots include controls, while sphere-frame
 exports consistently suppress every managed control, including radio-group
 titles.
 
+The two-observer release example selects parallel projection through
+`set_parallel_projection(..., make_default=True)` and uses only
+`save_sphere_frame()` for its tightly bounded sphere-only sequence. Projection,
+reset behavior, square dimensions, and analytical sphere framing therefore
+remain scene capabilities rather than example-specific VTK camera or image
+cropping code.
+
 The plotter supports interactive and off-screen construction. `save()` accepts
 an optional camera state, export-specific dimensions, and opaque RGB or
 transparent RGBA output. Repeated render and save calls reuse the existing

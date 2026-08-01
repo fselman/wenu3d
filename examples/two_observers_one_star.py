@@ -29,6 +29,9 @@ EARTH_RADIUS = 0.25
 INITIAL_LOCAL_SCALE = 0.20
 COMPARISON_LOCAL_SCALES = (0.20, 0.01)
 WINDOW_SIZE = (1800, 1200)
+PARALLEL_SCALE = 1.12
+SPHERE_FRAME_SIZE = 1200
+SPHERE_FRAME_PADDING = 0.035
 
 
 scene = CelestialScene(
@@ -39,6 +42,16 @@ scene = CelestialScene(
     earth_radius=EARTH_RADIUS,
     axis_visible=False,
     window_size=WINDOW_SIZE,
+)
+
+# Use the reusable camera-state capability for the limiting view from an
+# infinitely distant diagram camera. Making it the scene default ensures that
+# Reset camera and the numbered sphere-frame exports retain this projection.
+scene.set_parallel_projection(
+    True,
+    parallel_scale=PARALLEL_SCALE * scene.sphere_radius,
+    make_default=True,
+    render=False,
 )
 
 # A restrained equatorial grid supplies surface-orientation cues without
@@ -191,7 +204,11 @@ def save_numbered(index: int) -> None:
     if controls_are_included:
         scene.save(path)
     else:
-        scene.save_sphere_frame(path, size=1200, padding=0.035)
+        scene.save_sphere_frame(
+            path,
+            size=SPHERE_FRAME_SIZE,
+            padding=SPHERE_FRAME_PADDING,
+        )
 
 
 save_numbered(1)
