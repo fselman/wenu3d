@@ -107,6 +107,39 @@ class TargetLineIllustration(IllustrationLayer):
                 )
                 self.sight_line_objects[observer] = obj
 
+    def build(self, plotter) -> None:
+        super().build(plotter)
+        if self.local_cartoon is not None and self.observer_anchors:
+            self.local_cartoon.register_transform_dependent(self)
+
+    def detach(self, *, render: bool = True) -> None:
+        if self.local_cartoon is not None:
+            self.local_cartoon.unregister_transform_dependent(self)
+        super().detach(render=render)
+
+    def refresh_from_local_transform(
+        self,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Re-resolve finite sight-line origins after a local transform."""
+        if self.local_cartoon is None:
+            return
+        for observer, anchor in self.observer_anchors.items():
+            self.sight_line_objects[observer].segment = (
+                self.local_cartoon.make_observer_sight_line(
+                    observer=observer,
+                    anchor=anchor,
+                    target_position=self.target.display_position,
+                    style=self.sight_line_style,
+                )
+            )
+        plotter = self.attached_plotter
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
+
 
 class ParallaxIllustration(TargetLineIllustration):
     """Explicit finite-baseline convergence to an illustrative shell marker."""

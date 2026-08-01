@@ -242,7 +242,7 @@ class GlobalControlPanel:
         local_slider = self._add_slider(
             callback=self._set_local_scale,
             value=self._local_value(),
-            rng=(0.05, 2.00),
+            rng=(0.01, 2.00),
             title="Earth / plane / observer",
             y=second_y,
         )

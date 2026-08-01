@@ -155,6 +155,15 @@ class CelestialShellObject(SceneObject):
         key_vectors = self._normalized_rows(
             key_position[None, :] - points
         )
+        key_diffuse = np.clip(
+            np.einsum("ij,ij->i", normals, key_vectors),
+            0.0,
+            1.0,
+        )
+        directional_strength = self.style.sphere_directional_strength
+        brightness = 1.0 - directional_strength * (1.0 - key_diffuse)
+        rgb *= brightness[:, None]
+
         key_half_vectors = self._normalized_rows(
             key_vectors + view_vectors
         )

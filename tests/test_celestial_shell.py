@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pyvista as pv
+import pytest
 
 from wenu3d import CelestialShellObject
 from wenu3d.style import SceneStyle
@@ -70,6 +71,48 @@ def test_shell_material_refresh_is_camera_dependent() -> None:
     assert first.shape == (shell.mesh.n_points, 4)
     assert np.any(first[:, 3] > 0)
     assert not np.array_equal(first, second)
+
+
+def test_default_shell_material_has_broad_translucent_depth_cues() -> None:
+    style = SceneStyle()
+
+    assert style.sphere_center_opacity == pytest.approx(0.030)
+    assert style.sphere_rim_opacity == pytest.approx(0.46)
+    assert style.sphere_limb_power == pytest.approx(0.80)
+    assert style.sphere_directional_strength == pytest.approx(0.18)
+    assert style.sphere_specular_power == pytest.approx(42.0)
+    assert style.sphere_secondary_specular_power == pytest.approx(22.0)
+
+    plotter = make_plotter()
+    shell = make_shell()
+    shell.build(plotter)
+    shell.refresh()
+    alpha = shell.mesh.point_data["celestial_sphere_rgba"][:, 3]
+
+    assert np.ptp(alpha.astype(int)) > 80
+    assert 0 < np.median(alpha) < np.max(alpha)
+
+
+def test_directional_shell_shading_changes_rgb_without_changing_alpha() -> None:
+    plotter = make_plotter()
+    directional = CelestialShellObject(
+        name="directional",
+        style=SceneStyle(sphere_directional_strength=0.18),
+    )
+    symmetric = CelestialShellObject(
+        name="symmetric",
+        style=SceneStyle(sphere_directional_strength=0.0),
+    )
+
+    directional.build(plotter)
+    directional.refresh()
+    symmetric.build(plotter)
+    symmetric.refresh()
+    directional_rgba = directional.mesh.point_data["celestial_sphere_rgba"]
+    symmetric_rgba = symmetric.mesh.point_data["celestial_sphere_rgba"]
+
+    assert not np.array_equal(directional_rgba[:, :3], symmetric_rgba[:, :3])
+    np.testing.assert_array_equal(directional_rgba[:, 3], symmetric_rgba[:, 3])
 
 
 def test_zero_shell_presence_makes_material_fully_transparent() -> None:

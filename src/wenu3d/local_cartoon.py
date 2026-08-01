@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Protocol
 
 from .earth import EarthObject
 from .layer import Layer
@@ -8,6 +9,12 @@ from .observer import ObserverComposition, ObserverRepresentation
 from .scene_object import SceneObject
 from .segments import SegmentStyle, SightLine
 from .transforms import LocalCartoonTransform
+
+
+class LocalTransformDependent(Protocol):
+    """Object whose finite geometry depends on the local-cartoon transform."""
+
+    def refresh_from_local_transform(self, *, render: bool = True) -> None: ...
 
 
 class LocalCartoonLayer(Layer):
@@ -32,7 +39,29 @@ class LocalCartoonLayer(Layer):
         self.earth = earth
         self.transform = transform
         self._observer_compositions: dict[str, ObserverComposition] = {}
+        self._transform_dependents: list[LocalTransformDependent] = []
         super().add(earth)
+
+    def register_transform_dependent(
+        self,
+        dependent: LocalTransformDependent,
+    ) -> None:
+        refresh = getattr(dependent, "refresh_from_local_transform", None)
+        if not callable(refresh):
+            raise TypeError(
+                "Transform dependent must provide "
+                "refresh_from_local_transform()."
+            )
+        if not any(item is dependent for item in self._transform_dependents):
+            self._transform_dependents.append(dependent)
+
+    def unregister_transform_dependent(
+        self,
+        dependent: LocalTransformDependent,
+    ) -> None:
+        self._transform_dependents = [
+            item for item in self._transform_dependents if item is not dependent
+        ]
 
     def add(self, obj: SceneObject) -> SceneObject:
         if isinstance(obj, EarthObject):
@@ -106,6 +135,8 @@ class LocalCartoonLayer(Layer):
             raise TypeError("transform must be a LocalCartoonTransform.")
         self.transform = transform
         self._apply_actor_transform()
+        for dependent in tuple(self._transform_dependents):
+            dependent.refresh_from_local_transform(render=False)
         self._request_render(render)
 
     def transform_points(self, points):

@@ -11,15 +11,18 @@ class SceneStyle:
     sphere_highlight_color: str = "#ffffff"
 
     # The centre remains nearly transparent. Opacity increases toward the limb.
-    sphere_center_opacity: float = 0.022
-    sphere_rim_opacity: float = 0.48
-    sphere_limb_power: float = 2.25
+    sphere_center_opacity: float = 0.030
+    sphere_rim_opacity: float = 0.46
+    sphere_limb_power: float = 0.80
+
+    # Broad asymmetric illumination provides a three-dimensional depth cue.
+    sphere_directional_strength: float = 0.18
 
     # Two specular reflections.
     sphere_specular_strength: float = 1.00
-    sphere_specular_power: float = 72.0
+    sphere_specular_power: float = 42.0
     sphere_secondary_specular_strength: float = 0.48
-    sphere_secondary_specular_power: float = 34.0
+    sphere_secondary_specular_power: float = 22.0
 
     horizontal_grid_color: str = "#577fb7"
     equatorial_grid_color: str = "#75638f"

@@ -95,6 +95,7 @@ class CelestialScene:
         latitude_deg: float,
         longitude_deg: float,
         location_name: str,
+        title: str | None = None,
         earth_radius: float = 0.25,
         sphere_radius: float = 1.0,
         style: SceneStyle | None = None,
@@ -104,6 +105,9 @@ class CelestialScene:
         self.latitude_deg = latitude_deg
         self.longitude_deg = longitude_deg
         self.location_name = location_name
+        self.title = (
+            f"Celestial grids — {location_name}" if title is None else str(title)
+        )
         self.earth_radius = earth_radius
         self.sphere_radius = sphere_radius
         self.style = style or SceneStyle()
@@ -372,7 +376,7 @@ class CelestialScene:
     def _ensure_title(self) -> None:
         if self._title_actor is None:
             self._title_actor = self.plotter.add_text(
-                f"Celestial grids — {self.location_name}",
+                self.title,
                 position="upper_left",
                 font_size=18,
                 color=self.style.text_color,

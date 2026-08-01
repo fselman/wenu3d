@@ -196,6 +196,49 @@ def test_target_line_illustration_builds_real_marker_and_segments() -> None:
         plotter.close()
 
 
+def test_built_sight_lines_follow_local_scale_without_actor_accumulation() -> None:
+    illustration = make_illustration()
+    local = illustration.local_cartoon
+    plotter = pv.Plotter(off_screen=True)
+
+    try:
+        local.build(plotter)
+        illustration.build(plotter)
+        original_actor_count = len(plotter.actors)
+        target_position = illustration.target.display_position
+        centered = illustration.centered_direction_object.segment
+
+        local.set_scale(0.1, render=False)
+
+        assert len(plotter.actors) == original_actor_count
+        assert len(illustration.actors) == len(illustration.objects)
+        assert centered.start == (0.0, 0.0, 0.0)
+        assert centered.end == target_position
+        assert illustration.marker_object.marker.position == target_position
+        for observer, obj in illustration.sight_line_objects.items():
+            np.testing.assert_allclose(
+                obj.segment.start,
+                local.observer_anchor(observer, "position"),
+                atol=1e-12,
+            )
+            assert obj.segment.end == target_position
+
+        illustration.detach(render=False)
+        starts_after_detach = {
+            name: obj.segment.start
+            for name, obj in illustration.sight_line_objects.items()
+        }
+        local.set_scale(0.2, render=False)
+        assert {
+            name: obj.segment.start
+            for name, obj in illustration.sight_line_objects.items()
+        } == starts_after_detach
+    finally:
+        illustration.detach(render=False)
+        local.detach(render=False)
+        plotter.close()
+
+
 def test_target_line_illustration_validates_explicit_composition() -> None:
     with pytest.raises(TypeError, match="CelestialTarget"):
         TargetLineIllustration(name="bad", target=object())

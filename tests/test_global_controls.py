@@ -58,6 +58,7 @@ def test_global_panel_uses_compact_nonoverlapping_sliders() -> None:
     )
     assert sphere["title_height"] == 0.014
     assert local["title_height"] == 0.014
+    assert local["rng"] == (0.01, 2.00)
     assert len(panel.widgets) == 5
 
     representation = (

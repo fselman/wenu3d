@@ -11,6 +11,7 @@ from wenu3d.scene import CelestialScene
 def make_scene() -> CelestialScene:
     scene = object.__new__(CelestialScene)
     scene.location_name = "La Ligua"
+    scene.title = "Celestial grids — La Ligua"
     scene.style = Mock()
     scene.style.text_color = "#202020"
     scene.plotter = Mock()
@@ -45,6 +46,20 @@ def test_repeated_render_does_not_duplicate_title() -> None:
         color="#202020",
     )
     assert scene.plotter.render.call_count == 2
+
+
+def test_explicit_scene_title_replaces_grid_specific_default() -> None:
+    scene = make_scene()
+    scene.title = "Two observers and one star"
+
+    scene.render()
+
+    scene.plotter.add_text.assert_called_once_with(
+        "Two observers and one star",
+        position="upper_left",
+        font_size=18,
+        color="#202020",
+    )
 
 
 def test_render_does_not_rebuild_scene_graph_layers() -> None:
