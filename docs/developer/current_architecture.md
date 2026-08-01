@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.41
+**Version:** 0.42
 **Date:** 2026-07-31
-**Status:** M11 product hardening in progress through M11.2 on `feature/interactive-grid-controls`
+**Status:** M11 product hardening in progress through M11.3 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -886,6 +886,13 @@ M11.2 records the implemented transparency and occlusion policy in
 `docs/rendering_policy.md`. Focused tests verify actor-level visibility and
 opacity application, shell RGBA material and back-face culling, and the
 intentional always-visible annotation-overlay behavior.
+
+M11.3 consolidates the stable Horizon A workflows in `docs/user_guide.md`:
+quick start, interactive controls, batch export, annotations, horizontal and
+equatorial coordinates, observers and local composition, ideal horizons,
+target lines, parallax, scale comparisons, extension, and lifecycle cleanup.
+The guide explicitly preserves the direction-versus-distance and
+ideal-horizon-versus-local-platform distinctions.
 
 ## 13. Strengths
 

@@ -136,6 +136,10 @@ details.
 The [rendering policy](docs/rendering_policy.md) records transparency,
 far-side visibility, ordering, annotation, occlusion, and export semantics.
 
+The [user guide](docs/user_guide.md) covers quick-start, interactive, batch,
+annotation, control, coordinate, observer, horizon, parallax, comparison, and
+extension workflows.
+
 Developer documentation is in `docs/developer/`:
 
 - `current_architecture.md`;
