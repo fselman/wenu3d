@@ -1,8 +1,8 @@
 # Wenu3D Migration Path — Horizon A
 
-**Version:** 1.5
+**Version:** 1.6
 **Date:** 2026-07-31
-**Status:** M10 completed; M11 product hardening in progress through M11.1
+**Status:** M10 completed; M11 product hardening in progress through M11.2
 **From:** `current_architecture.md`  
 **To:** `target_architecture_horizonA.md`
 
@@ -536,7 +536,8 @@ Produce a standalone Horizon A release candidate.
 
 - classify stable, advanced, and internal APIs (completed by M11.1);
 - organize styles where accumulated parameters justify it;
-- document transparency, far-side visibility, ordering, and occlusion;
+- document transparency, far-side visibility, ordering, and occlusion
+  (completed by M11.2);
 - complete quick-start, interactive, batch, annotation, control, coordinate,
   observer, horizon, parallax, and extension documentation;
 - verify packaging, supported Python, errors, and absence of stale modules;
@@ -547,6 +548,10 @@ Produce a standalone Horizon A release candidate.
 - **M11.1 — API classification:** package-root `__all__` is the stable API;
   documented module-only interfaces are advanced; private and undocumented
   renderer details are internal; tests guard the export boundary.
+- **M11.2 — Rendering policy:** the implemented shell material, ordinary depth
+  occlusion, far-side visibility, translucent-ordering limits, always-visible
+  labels, and transparent-background export semantics are documented and
+  characterized.
 
 ### Gate
 

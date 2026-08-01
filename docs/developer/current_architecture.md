@@ -1,8 +1,8 @@
 # Wenu3D Current Architecture
 
-**Version:** 0.40
+**Version:** 0.41
 **Date:** 2026-07-31
-**Status:** M11 product hardening started through M11.1 on `feature/interactive-grid-controls`
+**Status:** M11 product hardening in progress through M11.2 on `feature/interactive-grid-controls`
 
 ## 1. Purpose
 
@@ -881,6 +881,11 @@ off-screen construction, multiple-observer requirements, and pair validation.
 M11.1 tests verify that the stable package-root API is explicit, unique,
 resolvable, free of private names, contains representative Horizon A product
 types, and does not accidentally promote documented advanced renderer helpers.
+
+M11.2 records the implemented transparency and occlusion policy in
+`docs/rendering_policy.md`. Focused tests verify actor-level visibility and
+opacity application, shell RGBA material and back-face culling, and the
+intentional always-visible annotation-overlay behavior.
 
 ## 13. Strengths
 
