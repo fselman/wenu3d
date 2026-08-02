@@ -3,7 +3,11 @@ import pyvista as pv
 import pytest
 
 from wenu3d.annotations import AnnotationStyle
-from wenu3d.coordinates import EquatorialCoordinateIllustration
+from wenu3d.coordinates import (
+    EquatorialCoordinateIllustration,
+    EquatorialLabels,
+    EquatorialReferenceIllustration,
+)
 from wenu3d.curves import CurveStyle
 from wenu3d.frames import SphericalFrame
 from wenu3d.targets import CelestialTarget
@@ -117,6 +121,78 @@ def test_labels_can_be_omitted_without_removing_coordinate_curves() -> None:
     assert illustration.declination_annotation is None
     assert illustration.longitude_annotation is None
     assert len(illustration.objects) == 3
+
+
+def test_complete_reference_circles_are_optional_and_precede_highlighted_arcs() -> None:
+    illustration = make_illustration(
+        show_hour_circle=True,
+        show_declination_circle=True,
+    )
+
+    assert [obj.name for obj in illustration.objects[:3]] == [
+        "equatorial.star.target",
+        "equatorial.star.hour_circle",
+        "equatorial.star.declination_circle",
+    ]
+    assert illustration.hour_circle_object.curve.style is illustration.hour_circle_style
+    assert (
+        illustration.declination_circle_object.curve.style
+        is illustration.declination_circle_style
+    )
+
+
+def test_spanish_labels_and_adjustable_frame_survive_rebuild() -> None:
+    labels = EquatorialLabels(
+        right_ascension="AR diagramática",
+        declination="Declinación",
+        north_celestial_pole="PNC",
+        south_celestial_pole="PSC",
+        equator="Ecuador celeste",
+        zero="Cero de AR",
+    )
+    illustration = make_illustration(
+        longitude_kind="right_ascension",
+        right_ascension_origin="origen ajustable del diagrama",
+        labels=labels,
+        angle_decimals=1,
+    )
+    rotated = equatorial_frame().with_longitude_origin(30.0)
+
+    illustration.set_target_and_frame(frame=rotated, render=False)
+
+    assert illustration.declination_annotation.annotation.text.startswith(
+        "Declinación = "
+    )
+    assert illustration.longitude_annotation.annotation.text.startswith(
+        "AR diagramática = "
+    )
+    assert illustration.geometry.frame is rotated
+
+
+def test_equatorial_references_expose_equator_zero_tick_and_spanish_poles() -> None:
+    labels = EquatorialLabels(
+        north_celestial_pole="PNC",
+        south_celestial_pole="PSC",
+    )
+    references = EquatorialReferenceIllustration(
+        name="references",
+        frame=equatorial_frame(),
+        radius=2.0,
+        labels=labels,
+        samples=13,
+    )
+
+    assert references.equator_object.name == "references.equator"
+    assert references.zero_tick_object.name == "references.zero_tick"
+    assert references.zero_tick_object.curve.style.width == pytest.approx(5.0)
+    assert not hasattr(references, "zero_annotation")
+    assert references.north_pole_annotation.annotation.text == "PNC"
+    assert references.south_pole_annotation.annotation.text == "PSC"
+    assert references.equator_annotation.annotation.text == "Celestial equator"
+    assert (
+        references.equator_annotation.annotation.associated_with
+        == references.equator_object.name
+    )
 
 
 def test_zero_span_components_are_omitted_independently() -> None:

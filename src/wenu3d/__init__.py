@@ -13,6 +13,7 @@ from .comparisons import (
 )
 from .controls import (
     AnnotationControlPanel,
+    ChoiceControlPanel,
     ControlManager,
     GlobalControlPanel,
     PanelPlacement,
@@ -22,7 +23,9 @@ from .controls import (
 from .coordinates import (
     EquatorialCoordinateGeometry,
     EquatorialCoordinateIllustration,
+    EquatorialLabels,
     EquatorialLongitudeKind,
+    EquatorialReferenceIllustration,
     HorizontalCoordinateGeometry,
     HorizontalCoordinateIllustration,
     HorizontalLabels,
@@ -82,6 +85,7 @@ __all__ = [
     "AnnotationStyle",
     "SphericalArc",
     "AnnotationControlPanel",
+    "ChoiceControlPanel",
     "CameraState",
     "LocalScaleComparison",
     "ScaleComparisonMode",
@@ -89,7 +93,9 @@ __all__ = [
     "ControlManager",
     "EquatorialCoordinateGeometry",
     "EquatorialCoordinateIllustration",
+    "EquatorialLabels",
     "EquatorialLongitudeKind",
+    "EquatorialReferenceIllustration",
     "HorizontalCoordinateGeometry",
     "HorizontalCoordinateIllustration",
     "HorizontalLabels",

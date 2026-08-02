@@ -14,6 +14,8 @@ from .grid import GridLayer
 CheckboxCallback = Callable[[bool], None]
 SliderCallback = Callable[[float], None]
 ValueGetter = Callable[[], float]
+ChoiceGetter = Callable[[], str]
+ChoiceSetter = Callable[[str], None]
 ActionCallback = Callable[[], None]
 VisibilityGetter = Callable[[], bool]
 
@@ -90,6 +92,91 @@ class VisibilityControlPanel:
 
 
 @dataclass
+class ChoiceControlPanel:
+    """Managed mutually exclusive radio choices for a model capability."""
+
+    plotter: pv.Plotter
+    set_choice: ChoiceSetter
+    get_choice: ChoiceGetter
+    choices: Sequence[tuple[str, str]]
+    title: str
+    group: str
+    origin_x: int = 20
+    origin_y: int = 960
+    width: int = 260
+    row_height: int = 38
+    radio_size: int = 22
+    font_size: int = 11
+    widgets: list[object] = field(default_factory=list, init=False)
+    text_actors: list[object] = field(default_factory=list, init=False)
+
+    def __post_init__(self) -> None:
+        self.choices = tuple(self.choices)
+        if not self.choices:
+            raise ValueError("Choice control requires at least one choice.")
+        keys = [key for key, _ in self.choices]
+        labels = [label for _, label in self.choices]
+        if any(not isinstance(value, str) or not value.strip() for value in keys):
+            raise ValueError("Choice keys must be non-empty strings.")
+        if any(not isinstance(value, str) or not value.strip() for value in labels):
+            raise ValueError("Choice labels must be non-empty strings.")
+        if len(set(keys)) != len(keys):
+            raise ValueError("Choice keys must be unique.")
+        if self.get_choice() not in keys:
+            raise ValueError("Current model choice is not registered.")
+        if not isinstance(self.group, str) or not self.group.strip():
+            raise ValueError("Choice radio group must be non-empty.")
+
+    @property
+    def control_size(self) -> tuple[int, int]:
+        return self.width, 42 + len(self.choices) * self.row_height
+
+    def add(self) -> None:
+        self.text_actors.append(self.plotter.add_text(
+            self.title,
+            position=(self.origin_x, self.origin_y),
+            font_size=self.font_size + 2,
+            color="#202020",
+        ))
+        current = self.get_choice()
+        for index, (key, label) in enumerate(self.choices):
+            y = self.origin_y - 38 - index * self.row_height
+            widget = self.plotter.add_radio_button_widget(
+                callback=self._callback(key),
+                radio_button_group=self.group,
+                value=key == current,
+                title=label,
+                position=(self.origin_x, y),
+                size=self.radio_size,
+                border_size=3,
+                color_on="#506070",
+                color_off="#d4d4d4",
+                background_color="#f7f6f2",
+            )
+            self.widgets.append(widget)
+        widget_owner = getattr(self.plotter, "widgets", self.plotter)
+        title_groups = getattr(
+            widget_owner,
+            "radio_button_title_dict",
+            {},
+        )
+        titles = title_groups.get(self.group, ())
+        if isinstance(titles, (tuple, list)):
+            self.text_actors.extend(titles)
+
+    def _callback(self, key: str) -> ActionCallback:
+        def callback() -> None:
+            self.set_choice(key)
+
+        return callback
+
+    def sync_from_model(self) -> None:
+        current = self.get_choice()
+        for widget, (key, _) in zip(self.widgets, self.choices):
+            widget.GetRepresentation().SetState(int(key == current))
+
+
+@dataclass
 class ScalarControlPanel:
     """Managed slider for one caller-supplied scalar capability."""
 
@@ -112,6 +199,9 @@ class ScalarControlPanel:
         return "bottom"
 
     def __post_init__(self) -> None:
+        self._validate_range()
+
+    def _validate_range(self) -> None:
         lower, upper = (float(value) for value in self.value_range)
         if lower >= upper:
             raise ValueError("Scalar control range must increase.")
@@ -127,7 +217,7 @@ class ScalarControlPanel:
         )
         y = self.origin_y - 35
         self._widget = self.plotter.add_slider_widget(
-            callback=self.set_value,
+            callback=self._set_value,
             rng=self.value_range,
             value=float(self.get_value()),
             title=self.title,
@@ -144,6 +234,40 @@ class ScalarControlPanel:
         )
         _configure_slider_text(self._widget)
         self.widgets.append(self._widget)
+
+    def _set_value(self, value: float) -> None:
+        """Dispatch through the panel's current scalar capability."""
+        self.set_value(float(value))
+
+    def set_capability(
+        self,
+        *,
+        set_value: SliderCallback,
+        get_value: ValueGetter,
+        title: str,
+        value_range: tuple[float, float],
+        value_format: str | None = None,
+    ) -> None:
+        """Rebind an existing slider to another scalar model capability."""
+        self.set_value = set_value
+        self.get_value = get_value
+        self.title = str(title)
+        self.value_range = value_range
+        self._validate_range()
+        if value_format is not None:
+            self.value_format = str(value_format)
+        if self._widget is None:
+            return
+        representation = self._widget.GetRepresentation()
+        representation.SetMinimumValue(self.value_range[0])
+        representation.SetMaximumValue(self.value_range[1])
+        representation.SetValue(float(self.get_value()))
+        set_title = getattr(representation, "SetTitleText", None)
+        if callable(set_title):
+            set_title(self.title)
+        set_format = getattr(representation, "SetLabelFormat", None)
+        if callable(set_format):
+            set_format(self.value_format)
 
     def sync_from_model(self) -> None:
         if self._widget is not None:
@@ -1154,6 +1278,27 @@ class ControlManager:
         self._visible = bool(visible)
         for item in self._control_items():
             self._set_item_visible(item, self._visible)
+        if render:
+            self.request_render()
+
+    def set_panel_visible(
+        self,
+        panel: ControlPanel,
+        visible: bool,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Set one registered panel's presentation visibility.
+
+        This changes only the VTK widgets and text actors owned by the panel;
+        it does not alter the bound model value.  Mode-dependent interfaces
+        can therefore exchange controls without losing either mode's state.
+        """
+        if not any(existing is panel for existing in self.panels):
+            raise ValueError("Control panel is not registered.")
+        for attribute in ("widgets", "text_actors"):
+            for item in getattr(panel, attribute, ()):
+                self._set_item_visible(item, bool(visible) and self._visible)
         if render:
             self.request_render()
 

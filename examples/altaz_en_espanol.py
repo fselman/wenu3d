@@ -1,4 +1,4 @@
-"""Vista AltAz con acimut y altura rotulados en español."""
+"""Vista con coordenadas horizontales o ecuatoriales en español."""
 
 from pathlib import Path
 
@@ -7,7 +7,13 @@ from wenu3d import (
     CelestialScene,
     CelestialTarget,
     CurveStyle,
+    EquatorialCoordinateIllustration,
+    EquatorialCoordinateGeometry,
+    EquatorialLabels,
+    EquatorialReferenceIllustration,
+    GridStyle,
     HorizontalCoordinateIllustration,
+    HorizontalCoordinateGeometry,
     HorizontalLabels,
     HorizontalReferenceIllustration,
     IllustrationLayer,
@@ -22,7 +28,7 @@ scene = CelestialScene(
     latitude_deg=-32.4524,
     longitude_deg=-71.2311,
     location_name="La Ligua",
-    title="Coordenadas horizontales: acimut y altura",
+    title="Coordenadas celestes: horizontal y ecuatorial",
     axis_visible=False,
     window_size=(1600, 1150),
 )
@@ -86,6 +92,66 @@ references = HorizontalReferenceIllustration(
 )
 scene.add(references)
 
+equatorial_labels = EquatorialLabels(
+    right_ascension="RA",
+    declination="Dec",
+    north_celestial_pole="PNC",
+    south_celestial_pole="PSC",
+    equator="Ecuador celeste",
+)
+
+# The scene's base equatorial frame fixes the celestial poles from latitude.
+# Its longitude zero lies initially on the upper local meridian. The RA-origin
+# slider rotates this explicit illustration frame around the fixed polar axis.
+ra_origin = {"offset_hours": 0.0}
+equatorial_frame = scene.equatorial.with_longitude_origin(
+    15.0 * ra_origin["offset_hours"],
+    name="equatorial_ajustable",
+)
+equatorial_references = EquatorialReferenceIllustration(
+    name="referencias_ecuatoriales",
+    frame=equatorial_frame,
+    radius=0.982 * scene.sphere_radius,
+    labels=equatorial_labels,
+    equator_style=CurveStyle(
+        color="#665b78",
+        width=2.2,
+        opacity=0.68,
+    ),
+    zero_tick_style=CurveStyle(
+        color="#463953",
+        width=5.0,
+        opacity=0.92,
+    ),
+    annotation_style=AnnotationStyle(
+        color="#302943",
+        font_size=17,
+        bold=True,
+    ),
+)
+scene.add(equatorial_references)
+
+# A reusable equatorial grid follows the selected RA frame. Meridians are
+# separated by 2 h (30 degrees) and parallels by 20 degrees. The equator is
+# drawn separately by the reference illustration, so every grid curve remains
+# deliberately faint and the RA zero is marked only by its heavy tick.
+equatorial_grid = scene.make_equatorial_grid(
+    name="reticula_ecuatorial",
+    frame=equatorial_frame,
+    meridians_deg=tuple(range(0, 360, 30)),
+    parallels_deg=tuple(range(-80, 81, 20)),
+    major_meridians_deg=(),
+    major_parallels_deg=(),
+    style=GridStyle(
+        color="#776f82",
+        major_radius=0.0012,
+        minor_radius=0.0012,
+        major_opacity=0.25,
+        minor_opacity=0.25,
+    ),
+)
+scene.add(equatorial_grid)
+
 star = CelestialTarget(
     name="estrella_NE",
     direction=scene.horizontal.point(45.0, 30.0),
@@ -128,6 +194,46 @@ coordinates = HorizontalCoordinateIllustration(
     ),
 )
 scene.add(coordinates)
+
+equatorial_coordinates = EquatorialCoordinateIllustration(
+    name="coordenadas_ecuatoriales_estrella",
+    target=star,
+    frame=equatorial_frame,
+    longitude_kind="right_ascension",
+    right_ascension_origin="origen ajustable de esta ilustración",
+    labels=equatorial_labels,
+    angle_decimals=1,
+    show_hour_circle=True,
+    show_declination_circle=True,
+    hour_circle_style=CurveStyle(
+        color="#776c86",
+        width=1.0,
+        opacity=0.24,
+    ),
+    declination_circle_style=CurveStyle(
+        color="#776c86",
+        width=1.0,
+        opacity=0.18,
+    ),
+    declination_style=CurveStyle(
+        color="#8b5fbf",
+        width=4.5,
+        opacity=0.95,
+        arrowheads="end",
+    ),
+    longitude_style=CurveStyle(
+        color="#bd6f3f",
+        width=4.5,
+        opacity=0.95,
+        arrowheads="end",
+    ),
+    annotation_style=AnnotationStyle(
+        color="#2d203b",
+        font_size=16,
+        bold=True,
+    ),
+)
+scene.add(equatorial_coordinates)
 
 # The ideal sight line is the renderer-neutral celestial direction from the
 # center of the sphere. The target marker is already owned by the coordinate
@@ -189,41 +295,203 @@ scene.add_visibility_control(
     label="Línea E–O",
 )
 
+target_state = {"target": star}
 star_angles = {"azimuth": 45.0, "altitude": 30.0}
+initial_equatorial = EquatorialCoordinateGeometry(
+    target=star,
+    frame=equatorial_frame,
+    longitude_kind="right_ascension",
+    right_ascension_origin="origen ajustable de esta ilustración",
+)
+equatorial_angles = {
+    "right_ascension_hours": initial_equatorial.right_ascension_hours,
+    "declination_deg": initial_equatorial.declination_deg,
+}
+coordinate_mode = {"value": "equatorial"}
+
+
+def replace_target(
+    updated_target: CelestialTarget,
+    *,
+    equatorial_frame_override=None,
+) -> None:
+    """Synchronize every illustration derived from the selected direction."""
+    target_state["target"] = updated_target
+    coordinates.set_target(updated_target, render=False)
+    equatorial_coordinates.set_target_and_frame(
+        target=updated_target,
+        frame=equatorial_frame_override,
+        render=False,
+    )
+    ideal_sight_line.set_target(updated_target, render=False)
+
+
+def update_horizontal_values_from_target() -> None:
+    geometry = HorizontalCoordinateGeometry(
+        target=target_state["target"],
+        frame=scene.horizontal,
+    )
+    star_angles["azimuth"] = geometry.azimuth_deg
+    star_angles["altitude"] = geometry.altitude_deg
+
+
+def update_equatorial_values_from_target() -> None:
+    geometry = EquatorialCoordinateGeometry(
+        target=target_state["target"],
+        frame=equatorial_references.frame,
+        longitude_kind="right_ascension",
+        right_ascension_origin="origen ajustable de esta ilustración",
+    )
+    equatorial_angles["right_ascension_hours"] = (
+        geometry.right_ascension_hours
+    )
+    equatorial_angles["declination_deg"] = geometry.declination_deg
+
+
+def set_coordinate_mode(mode: str) -> None:
+    """Show one coordinate composition while retaining common context."""
+    if mode not in ("horizontal", "equatorial"):
+        raise ValueError(f"Modo de coordenadas desconocido: {mode}")
+    coordinate_mode["value"] = mode
+    if mode == "horizontal":
+        update_horizontal_values_from_target()
+    else:
+        update_equatorial_values_from_target()
+    coordinates.set_visible(mode == "horizontal", render=False)
+    equatorial_grid.set_visible(mode == "equatorial", render=False)
+    equatorial_references.set_visible(mode == "equatorial", render=False)
+    equatorial_coordinates.set_visible(mode == "equatorial", render=False)
+    if mode == "horizontal":
+        primary_coordinate_panel.set_capability(
+            set_value=lambda value: set_star_direction(azimuth=value),
+            get_value=lambda: star_angles["azimuth"],
+            title="Acimut de la estrella",
+            value_range=(0.0, 359.0),
+            value_format="%.0f°",
+        )
+        secondary_coordinate_panel.set_capability(
+            set_value=lambda value: set_star_direction(altitude=value),
+            get_value=lambda: star_angles["altitude"],
+            title="Altura de la estrella",
+            value_range=(1.0, 89.0),
+            value_format="%.0f°",
+        )
+    else:
+        primary_coordinate_panel.set_capability(
+            set_value=lambda value: set_equatorial_direction(
+                right_ascension_hours=value
+            ),
+            get_value=lambda: equatorial_angles["right_ascension_hours"],
+            title="RA de la estrella",
+            value_range=(0.0, 24.0),
+            value_format="%.1f h",
+        )
+        secondary_coordinate_panel.set_capability(
+            set_value=lambda value: set_equatorial_direction(
+                declination=value
+            ),
+            get_value=lambda: equatorial_angles["declination_deg"],
+            title="Dec de la estrella",
+            value_range=(-89.0, 89.0),
+            value_format="%.0f°",
+        )
+    scene.controls.set_panel_visible(
+        ra_origin_panel,
+        mode == "equatorial",
+        render=False,
+    )
+    scene.controls.sync(render=False)
+    scene.plotter.render()
 
 
 def set_star_direction(*, azimuth=None, altitude=None):
-    """Synchronize every illustration derived from the selected direction."""
+    """Set the target from horizontal coordinates."""
     if azimuth is not None:
         star_angles["azimuth"] = float(azimuth)
     if altitude is not None:
         star_angles["altitude"] = float(altitude)
-    updated_target = star.with_direction(
+    updated_target = target_state["target"].with_direction(
         scene.horizontal.point(
             star_angles["azimuth"],
             star_angles["altitude"],
         )
     )
-    coordinates.set_target(updated_target, render=False)
-    ideal_sight_line.set_target(updated_target, render=False)
+    replace_target(updated_target)
     scene.plotter.render()
 
 
-scene.add_scalar_control(
+def set_equatorial_direction(*, right_ascension_hours=None, declination=None):
+    """Set the target from RA and Dec in the current equatorial frame."""
+    if right_ascension_hours is not None:
+        equatorial_angles["right_ascension_hours"] = float(
+            right_ascension_hours
+        ) % 24.0
+    if declination is not None:
+        equatorial_angles["declination_deg"] = float(declination)
+    updated_target = target_state["target"].with_direction(
+        equatorial_references.frame.point(
+            15.0 * equatorial_angles["right_ascension_hours"],
+            equatorial_angles["declination_deg"],
+        )
+    )
+    replace_target(updated_target)
+    scene.plotter.render()
+
+
+def set_ra_origin(offset_hours: float) -> None:
+    """Rotate the RA frame while retaining the selected RA and Dec values."""
+    ra_origin["offset_hours"] = float(offset_hours) % 24.0
+    updated_frame = scene.equatorial.with_longitude_origin(
+        15.0 * ra_origin["offset_hours"],
+        name="equatorial_ajustable",
+    )
+    equatorial_references.set_frame(updated_frame, render=False)
+    equatorial_grid.set_frame(updated_frame, render=False)
+    updated_target = target_state["target"].with_direction(
+        updated_frame.point(
+            15.0 * equatorial_angles["right_ascension_hours"],
+            equatorial_angles["declination_deg"],
+        )
+    )
+    replace_target(
+        updated_target,
+        equatorial_frame_override=updated_frame,
+    )
+    scene.plotter.render()
+
+
+scene.add_choice_control(
+    set_choice=set_coordinate_mode,
+    get_choice=lambda: coordinate_mode["value"],
+    choices=(
+        ("horizontal", "Horizontal: acimut y altura"),
+        ("equatorial", "Ecuatorial: RA y Dec"),
+    ),
+    title="Sistema de coordenadas",
+    group="sistema_de_coordenadas",
+)
+primary_coordinate_panel = scene.add_scalar_control(
     set_value=lambda value: set_star_direction(azimuth=value),
     get_value=lambda: star_angles["azimuth"],
     title="Acimut de la estrella",
     value_range=(0.0, 359.0),
     value_format="%.0f°",
 )
-scene.add_scalar_control(
+secondary_coordinate_panel = scene.add_scalar_control(
     set_value=lambda value: set_star_direction(altitude=value),
     get_value=lambda: star_angles["altitude"],
     title="Altura de la estrella",
     value_range=(1.0, 89.0),
     value_format="%.0f°",
 )
-scene.add_scalar_control(
+ra_origin_panel = scene.add_scalar_control(
+    set_value=set_ra_origin,
+    get_value=lambda: ra_origin["offset_hours"],
+    title="Origen de RA",
+    value_range=(0.0, 24.0),
+    value_format="%.1f h",
+)
+local_height_panel = scene.add_scalar_control(
     set_value=lambda value: scene.local_cartoon.set_observer_anchor_height(
         observer=scene.observer.name,
         anchor="feet",
@@ -239,13 +507,25 @@ scene.add_scalar_control(
     value_range=(-0.15, 0.35),
     value_format="%.2f",
 )
-scene.add_annotation_controls(references, coordinates)
+scene.add_annotation_controls(
+    references,
+    coordinates,
+    equatorial_references,
+    equatorial_coordinates,
+)
+set_coordinate_mode("equatorial")
 
 scene.show()
 
 output_directory = Path(__file__).resolve().parents[1] / "outputs"
 output_directory.mkdir(parents=True, exist_ok=True)
-output_path = output_directory / "altaz_en_espanol.png"
+output_coordinate_name = {
+    "horizontal": "altaz",
+    "equatorial": "radec",
+}[coordinate_mode["value"]]
+output_path = output_directory / (
+    f"coordenadas_{output_coordinate_name}_en_espanol.png"
+)
 scene.save_sphere_frame(output_path)
 print(f"Imagen guardada en: {output_path}")
 scene.close()

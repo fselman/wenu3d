@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from wenu3d.controls import (
+    ChoiceControlPanel,
     ControlManager,
     GridControlPanel,
     PanelPlacement,
@@ -78,6 +79,25 @@ def test_scene_registers_grid_panel_without_coordinates() -> None:
     scene.controls.register_panel.assert_called_once_with(panel)
 
 
+def test_manager_can_exchange_registered_panel_presentations() -> None:
+    manager, plotter = make_manager()
+    widget = Mock()
+    text_actor = Mock()
+    panel = FakePanel(
+        widgets=(widget,),
+        text_actors=(text_actor,),
+    )
+    manager.register_panel(panel)
+
+    manager.set_panel_visible(panel, False, render=False)
+
+    widget.SetEnabled.assert_called_with(False)
+    text_actor.SetVisibility.assert_called_with(False)
+    plotter.render.assert_not_called()
+    with pytest.raises(ValueError, match="not registered"):
+        manager.set_panel_visible(FakePanel(), True, render=False)
+
+
 def test_visibility_panel_sets_and_synchronizes_caller_capability() -> None:
     plotter = Mock()
     widget = Mock()
@@ -97,6 +117,30 @@ def test_visibility_panel_sets_and_synchronizes_caller_capability() -> None:
 
     assert not state["visible"]
     widget.GetRepresentation().SetState.assert_called_with(0)
+
+
+def test_choice_panel_sets_and_synchronizes_mutually_exclusive_model_value() -> None:
+    plotter = Mock()
+    widgets = [Mock(), Mock()]
+    plotter.add_radio_button_widget.side_effect = widgets
+    state = {"mode": "equatorial"}
+    panel = ChoiceControlPanel(
+        plotter=plotter,
+        set_choice=lambda value: state.__setitem__("mode", value),
+        get_choice=lambda: state["mode"],
+        choices=(("horizontal", "Horizontal"), ("equatorial", "Ecuatorial")),
+        title="Sistema",
+        group="coordinates",
+    )
+
+    panel.add()
+    panel._callback("horizontal")()
+    panel.sync_from_model()
+
+    assert state["mode"] == "horizontal"
+    assert [call.kwargs["value"] for call in plotter.add_radio_button_widget.call_args_list] == [False, True]
+    widgets[0].GetRepresentation().SetState.assert_called_with(1)
+    widgets[1].GetRepresentation().SetState.assert_called_with(0)
 
 
 def test_grid_panel_uses_initial_model_visibility() -> None:
@@ -226,6 +270,42 @@ def test_scalar_panels_fill_reserved_bottom_lane_left_to_right() -> None:
         placement.origin_y - placement.height == 20
         for placement in manager.placements
     )
+
+
+def test_scalar_panel_can_rebind_to_another_model_capability() -> None:
+    plotter = Mock()
+    plotter.window_size = (900, 600)
+    widget = Mock()
+    plotter.add_slider_widget.return_value = widget
+    first_setter = Mock()
+    second_setter = Mock()
+    panel = ScalarControlPanel(
+        plotter=plotter,
+        set_value=first_setter,
+        get_value=lambda: 45.0,
+        title="Acimut",
+        value_range=(0.0, 359.0),
+        value_format="%.0f°",
+    )
+    panel.add()
+
+    panel.set_capability(
+        set_value=second_setter,
+        get_value=lambda: 5.5,
+        title="RA",
+        value_range=(0.0, 24.0),
+        value_format="%.1f h",
+    )
+    panel._set_value(6.0)
+
+    representation = widget.GetRepresentation.return_value
+    representation.SetMinimumValue.assert_called_with(0.0)
+    representation.SetMaximumValue.assert_called_with(24.0)
+    representation.SetValue.assert_called_with(5.5)
+    representation.SetTitleText.assert_called_with("RA")
+    representation.SetLabelFormat.assert_called_with("%.1f h")
+    second_setter.assert_called_once_with(6.0)
+    first_setter.assert_not_called()
 
 
 def test_side_panels_reserve_bottom_control_lane() -> None:

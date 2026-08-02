@@ -119,6 +119,15 @@ def test_equatorial_frame_has_expected_pole(
     assert_orthonormal(frame)
 
 
+def test_frame_can_rotate_only_its_longitude_origin() -> None:
+    frame = equatorial_frame(-32.0)
+    rotated = frame.with_longitude_origin(90.0)
+
+    np.testing.assert_allclose(rotated.pole, frame.pole, atol=1e-12)
+    np.testing.assert_allclose(rotated.zero, frame.east, atol=1e-12)
+    np.testing.assert_allclose(rotated.east, -frame.zero, atol=1e-12)
+
+
 @pytest.mark.parametrize(
     "latitude_deg",
     [-90.0, 90.0, -91.0, 91.0, np.inf, np.nan],

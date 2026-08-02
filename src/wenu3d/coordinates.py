@@ -44,6 +44,34 @@ class HorizontalLabels:
 
 
 @dataclass(frozen=True)
+class EquatorialLabels:
+    """Configurable terminology for equatorial-coordinate illustrations."""
+
+    right_ascension: str = "Right ascension"
+    declination: str = "Declination"
+    north_celestial_pole: str = "NCP"
+    south_celestial_pole: str = "SCP"
+    equator: str = "Celestial equator"
+    zero: str = "RA zero"
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "right_ascension",
+            "declination",
+            "north_celestial_pole",
+            "south_celestial_pole",
+            "equator",
+            "zero",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Equatorial label {field_name} must be non-empty."
+                )
+            object.__setattr__(self, field_name, value.strip())
+
+
+@dataclass(frozen=True)
 class HorizontalCoordinateGeometry:
     """Centered altitude and azimuth geometry for one celestial target."""
 
@@ -333,6 +361,34 @@ class EquatorialCoordinateGeometry:
             samples=self.samples,
         )
 
+    @property
+    def hour_circle(self) -> SphericalArc:
+        """Complete great circle through the target and celestial poles."""
+        foot = np.asarray(self._foot_direction)
+        frame = SphericalFrame(
+            name=f"{self.target.name}.hour_circle",
+            pole=np.cross(self.frame.pole, foot),
+            zero=self.frame.pole,
+            east=foot,
+        )
+        return SphericalArc.great_circle(
+            frame,
+            start_deg=0.0,
+            end_deg=360.0,
+            radius=self.target.shell_radius,
+            samples=max(self.samples, 181),
+        )
+
+    @property
+    def declination_circle_points(self) -> np.ndarray:
+        """Sample the target's complete small circle of declination."""
+        longitudes = np.linspace(0.0, 360.0, max(self.samples, 181))
+        latitudes = np.full_like(longitudes, self.declination_deg)
+        return self.target.shell_radius * self.frame.point(
+            longitudes,
+            latitudes,
+        )
+
 
 class EquatorialCoordinateIllustration(IllustrationLayer):
     """Renderable target, declination, longitude, and convention labels."""
@@ -349,8 +405,13 @@ class EquatorialCoordinateIllustration(IllustrationLayer):
         declination_style: CurveStyle | None = None,
         longitude_style: CurveStyle | None = None,
         annotation_style: AnnotationStyle | None = None,
+        labels: EquatorialLabels | None = None,
         angle_decimals: int = 1,
         show_labels: bool = True,
+        show_hour_circle: bool = False,
+        show_declination_circle: bool = False,
+        hour_circle_style: CurveStyle | None = None,
+        declination_circle_style: CurveStyle | None = None,
         visible: bool = True,
         opacity: float = 1.0,
     ) -> None:
@@ -377,6 +438,20 @@ class EquatorialCoordinateIllustration(IllustrationLayer):
             AnnotationStyle,
         ):
             raise TypeError("annotation_style must be an AnnotationStyle.")
+        if labels is not None and not isinstance(labels, EquatorialLabels):
+            raise TypeError("labels must be EquatorialLabels.")
+        for field_name, value in (
+            ("show_hour_circle", show_hour_circle),
+            ("show_declination_circle", show_declination_circle),
+        ):
+            if not isinstance(value, (bool, np.bool_)):
+                raise TypeError(f"{field_name} must be a boolean.")
+        for field_name, value in (
+            ("hour_circle_style", hour_circle_style),
+            ("declination_circle_style", declination_circle_style),
+        ):
+            if value is not None and not isinstance(value, CurveStyle):
+                raise TypeError(f"{field_name} must be a CurveStyle.")
 
         super().__init__(name=name, visible=visible, opacity=opacity)
         self.target = target
@@ -398,29 +473,57 @@ class EquatorialCoordinateIllustration(IllustrationLayer):
             arrowheads="end",
         )
         self.annotation_style = annotation_style or AnnotationStyle()
+        self._custom_labels = labels is not None
+        self.labels = labels or EquatorialLabels()
         self.angle_decimals = int(angle_decimals)
         self.show_labels = bool(show_labels)
-
-        self.marker_object: MarkerObject = self.add_marker(
-            f"{name}.target",
-            target.as_marker(),
+        self.show_hour_circle = bool(show_hour_circle)
+        self.show_declination_circle = bool(show_declination_circle)
+        self.hour_circle_style = hour_circle_style or CurveStyle(
+            color="#687784", width=1.0, opacity=0.24
         )
+        self.declination_circle_style = declination_circle_style or CurveStyle(
+            color="#687784", width=1.0, opacity=0.20
+        )
+        self._populate_target_objects()
+
+    def _populate_target_objects(self) -> None:
+        self.marker_object: MarkerObject = self.add_marker(
+            f"{self.name}.target",
+            self.target.as_marker(),
+        )
+        self.hour_circle_object: CurveObject | None = None
+        self.declination_circle_object: CurveObject | None = None
         self.declination_curve_object: CurveObject | None = None
         self.longitude_curve_object: CurveObject | None = None
         self.declination_annotation: AnnotationObject | None = None
         self.longitude_annotation: AnnotationObject | None = None
 
+        if self.show_hour_circle:
+            self.hour_circle_object = self.add_curve(
+                f"{self.name}.hour_circle",
+                self.geometry.hour_circle.to_curve(style=self.hour_circle_style),
+            )
+        if self.show_declination_circle:
+            self.declination_circle_object = self.add_curve(
+                f"{self.name}.declination_circle",
+                SampledCurve(
+                    points=self.geometry.declination_circle_points,
+                    style=self.declination_circle_style,
+                ),
+            )
+
         declination_arc = self.geometry.declination_arc
         if declination_arc is not None:
             self.declination_curve_object = self.add_curve(
-                f"{name}.declination",
+                f"{self.name}.declination",
                 declination_arc.to_curve(style=self.declination_style),
             )
             if self.show_labels:
                 self.declination_annotation = self._add_angle_annotation(
-                    name=f"{name}.declination.label",
+                    name=f"{self.name}.declination.label",
                     text=(
-                        "Declination = "
+                        f"{self.labels.declination} = "
                         f"{self.geometry.declination_deg:.{self.angle_decimals}f}°"
                     ),
                     curve_object=self.declination_curve_object,
@@ -429,26 +532,61 @@ class EquatorialCoordinateIllustration(IllustrationLayer):
         longitude_arc = self.geometry.longitude_arc
         if longitude_arc is not None:
             self.longitude_curve_object = self.add_curve(
-                f"{name}.longitude",
+                f"{self.name}.longitude",
                 longitude_arc.to_curve(style=self.longitude_style),
             )
             if self.show_labels:
                 self.longitude_annotation = self._add_angle_annotation(
-                    name=f"{name}.longitude.label",
+                    name=f"{self.name}.longitude.label",
                     text=self._longitude_annotation_text(),
                     curve_object=self.longitude_curve_object,
                 )
 
     def _longitude_annotation_text(self) -> str:
         if self.geometry.longitude_kind == "right_ascension":
+            label = (
+                self.labels.right_ascension
+                if self._custom_labels
+                else self.geometry.longitude_label
+            )
             return (
-                f"{self.geometry.longitude_label} = "
+                f"{label} = "
                 f"{self.geometry.right_ascension_hours:.{self.angle_decimals}f} h"
             )
         return (
             f"{self.geometry.longitude_label} = "
             f"{self.geometry.longitude_deg:.{self.angle_decimals}f}°"
         )
+
+    def set_target_and_frame(
+        self,
+        *,
+        target: CelestialTarget | None = None,
+        frame: SphericalFrame | None = None,
+        render: bool = True,
+    ) -> None:
+        """Refresh target-derived geometry after target or origin changes."""
+        if target is not None and not isinstance(target, CelestialTarget):
+            raise TypeError("target must be a CelestialTarget.")
+        if frame is not None and not isinstance(frame, SphericalFrame):
+            raise TypeError("frame must be a SphericalFrame.")
+        plotter = self.attached_plotter
+        self.detach(render=False)
+        self.objects.clear()
+        self.target = self.target if target is None else target
+        current_frame = self.geometry.frame if frame is None else frame
+        self.geometry = EquatorialCoordinateGeometry(
+            target=self.target,
+            frame=current_frame,
+            longitude_kind=self.geometry.longitude_kind,
+            right_ascension_origin=self.geometry.right_ascension_origin,
+            samples=self.geometry.samples,
+        )
+        self._populate_target_objects()
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
 
     def _add_angle_annotation(
         self,
@@ -470,6 +608,145 @@ class EquatorialCoordinateIllustration(IllustrationLayer):
                 associated_with=curve_object.name,
             ),
         )
+
+
+class EquatorialReferenceIllustration(IllustrationLayer):
+    """Celestial equator, RA-zero tick, and celestial-pole labels."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        frame: SphericalFrame,
+        radius: float,
+        labels: EquatorialLabels | None = None,
+        equator_style: CurveStyle | None = None,
+        zero_tick_style: CurveStyle | None = None,
+        zero_tick_half_angle_deg: float = 3.0,
+        annotation_style: AnnotationStyle | None = None,
+        samples: int = 361,
+        visible: bool = True,
+        opacity: float = 1.0,
+    ) -> None:
+        if not isinstance(frame, SphericalFrame):
+            raise TypeError("frame must be a SphericalFrame.")
+        radius = float(radius)
+        if not np.isfinite(radius) or radius <= 0.0:
+            raise ValueError("radius must be finite and greater than zero.")
+        if (
+            isinstance(samples, (bool, np.bool_))
+            or not isinstance(samples, (int, np.integer))
+            or samples < 4
+        ):
+            raise ValueError("samples must be an integer of at least 4.")
+        labels = labels or EquatorialLabels()
+        if not isinstance(labels, EquatorialLabels):
+            raise TypeError("labels must be EquatorialLabels.")
+        for field_name, style, style_type in (
+            ("equator_style", equator_style, CurveStyle),
+            ("zero_tick_style", zero_tick_style, CurveStyle),
+            ("annotation_style", annotation_style, AnnotationStyle),
+        ):
+            if style is not None and not isinstance(style, style_type):
+                raise TypeError(f"{field_name} must be a {style_type.__name__}.")
+
+        super().__init__(name=name, visible=visible, opacity=opacity)
+        self.frame = frame
+        self.radius = radius
+        self.labels = labels
+        self.samples = int(samples)
+        self.equator_style = equator_style or CurveStyle(
+            color="#665b78", width=2.0, opacity=0.62
+        )
+        self.zero_tick_style = zero_tick_style or CurveStyle(
+            color="#463953", width=5.0, opacity=0.92
+        )
+        zero_tick_half_angle_deg = float(zero_tick_half_angle_deg)
+        if (
+            not np.isfinite(zero_tick_half_angle_deg)
+            or not 0.0 < zero_tick_half_angle_deg < 90.0
+        ):
+            raise ValueError(
+                "zero_tick_half_angle_deg must be finite and in (0, 90)."
+            )
+        self.zero_tick_half_angle_deg = zero_tick_half_angle_deg
+        self.annotation_style = annotation_style or AnnotationStyle()
+        self._populate_reference_objects()
+
+    def _populate_reference_objects(self) -> None:
+        equator = SphericalArc.great_circle(
+            self.frame,
+            start_deg=0.0,
+            end_deg=360.0,
+            radius=self.radius,
+            samples=self.samples,
+        )
+        zero_hour_frame = SphericalFrame(
+            name=f"{self.name}.zero_hour_circle",
+            pole=self.frame.east,
+            zero=self.frame.pole,
+            east=self.frame.zero,
+        )
+        zero_tick = SphericalArc.great_circle(
+            zero_hour_frame,
+            start_deg=90.0 - self.zero_tick_half_angle_deg,
+            end_deg=90.0 + self.zero_tick_half_angle_deg,
+            radius=self.radius,
+            samples=max(5, int(np.ceil(self.zero_tick_half_angle_deg)) * 2 + 1),
+        )
+        self.equator_object = self.add_curve(
+            f"{self.name}.equator",
+            equator.to_curve(style=self.equator_style),
+        )
+        self.zero_tick_object = self.add_curve(
+            f"{self.name}.zero_tick",
+            zero_tick.to_curve(style=self.zero_tick_style),
+        )
+        annotation_radius = 1.025 * self.radius
+        self.north_pole_annotation = self.add_annotation(
+            f"{self.name}.north_pole",
+            Annotation(
+                text=self.labels.north_celestial_pole,
+                anchor=annotation_radius * self.frame.pole,
+                style=self.annotation_style,
+            ),
+        )
+        self.south_pole_annotation = self.add_annotation(
+            f"{self.name}.south_pole",
+            Annotation(
+                text=self.labels.south_celestial_pole,
+                anchor=-annotation_radius * self.frame.pole,
+                style=self.annotation_style,
+            ),
+        )
+        self.equator_annotation = self.add_annotation(
+            f"{self.name}.equator.label",
+            Annotation(
+                text=self.labels.equator,
+                anchor=annotation_radius * self.frame.point(135.0, 0.0),
+                style=self.annotation_style,
+                associated_with=self.equator_object.name,
+            ),
+        )
+
+    def set_frame(
+        self,
+        frame: SphericalFrame,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Replace the equatorial longitude origin and rebuild references."""
+        if not isinstance(frame, SphericalFrame):
+            raise TypeError("frame must be a SphericalFrame.")
+        plotter = self.attached_plotter
+        self.detach(render=False)
+        self.objects.clear()
+        self.frame = frame
+        self._populate_reference_objects()
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
 
 
 class HorizontalCoordinateIllustration(IllustrationLayer):

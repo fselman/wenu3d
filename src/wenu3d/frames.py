@@ -54,6 +54,26 @@ class SphericalFrame:
             + np.sin(lat)[..., None] * self.pole
         )
 
+    def with_longitude_origin(
+        self,
+        offset_deg: float,
+        *,
+        name: str | None = None,
+    ) -> SphericalFrame:
+        """Return this spherical frame with its zero rotated about the pole."""
+        offset = float(offset_deg)
+        if not np.isfinite(offset):
+            raise ValueError("Longitude-origin offset must be finite.")
+        angle = np.deg2rad(offset)
+        zero = np.cos(angle) * self.zero + np.sin(angle) * self.east
+        east = -np.sin(angle) * self.zero + np.cos(angle) * self.east
+        return SphericalFrame(
+            name=self.name if name is None else str(name),
+            pole=self.pole,
+            zero=zero,
+            east=east,
+        )
+
 
 def horizontal_frame() -> SphericalFrame:
     # Local Cartesian convention:

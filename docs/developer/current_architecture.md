@@ -198,6 +198,12 @@ more annotation layers. `GlobalControlPanel` controls shell presence and
 local-object scale and provides a momentary camera-reset action. These panels
 also synchronize their widget representations from current model state.
 
+`ChoiceControlPanel` binds a caller-supplied string model capability to a
+managed, mutually exclusive radio group. `CelestialScene.add_choice_control()`
+registers it without caller-managed coordinates. This keeps coordinate-system
+selection and similar future modes in the control architecture rather than in
+example-specific widget placement.
+
 The manager can also register externally created widgets and complete PyVista
 radio groups. Radio-group registration includes both the button widgets and
 their separately owned title actors. Managed visibility therefore hides or
@@ -579,6 +585,22 @@ description. Default curve styles place end arrowheads, while callers retain
 control of both `CurveStyle` records, the common `AnnotationStyle`, precision,
 and label visibility. Zero-span components are omitted independently, and the
 canonical scene remains unchanged.
+
+The equatorial illustration now optionally includes the complete faint hour
+circle through the target and its complete declination small circle behind the
+highlighted coordinate arcs. `EquatorialReferenceIllustration` owns the
+celestial equator, a heavy unlabelled tick at the explicitly selected RA zero,
+and configurable PNC/PSC and equator labels. `SphericalFrame` rotation and
+`GridLayer.set_frame()` allow the reference objects, an equatorial grid, the
+highlighted RA arc, and its target to move coherently when an illustration's
+RA zero changes. The switchable Spanish coordinate example labels the
+quantities `RA` and `Dec`, uses a faint grid every 2 h and 20 degrees, and
+rebinds the same scalar control panels between Acimut/Altura and RA/Dec.
+`ControlManager.set_panel_visible()` controls the additional RA-origin panel
+without discarding its value. The exported filename records the active
+`altaz` or `radec` mode. This remains explicit illustration geometry; it does
+not claim that the adjustable direction is the physical equinox-defined ICRS
+origin.
 
 M10.6 adds `TargetLineIllustration`, an explicitly requested composition that
 keeps convergence-like finite lines out of ordinary coordinate helpers. It

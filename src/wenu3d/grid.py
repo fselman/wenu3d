@@ -170,6 +170,24 @@ class GridLayer(Layer):
         for parallel in self.parallels.values():
             parallel.set_visible(visible, render=False)
 
+    def set_frame(
+        self,
+        frame: SphericalFrame,
+        *,
+        render: bool = True,
+    ) -> None:
+        """Replace the spherical frame and rebuild attached grid curves."""
+        if not isinstance(frame, SphericalFrame):
+            raise TypeError("frame must be a SphericalFrame.")
+        plotter = self.attached_plotter
+        self.detach(render=False)
+        self.frame = frame
+        self._create_curve_objects()
+        if plotter is not None:
+            self.build(plotter)
+            if render:
+                plotter.render()
+
     def make_label_layer(
         self,
         *,

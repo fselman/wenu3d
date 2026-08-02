@@ -13,6 +13,7 @@ from .annotations import AnnotationLayer
 from .camera import CameraState
 from .controls import (
     AnnotationControlPanel,
+    ChoiceControlPanel,
     ControlManager,
     GlobalControlPanel,
     GridControlPanel,
@@ -20,7 +21,7 @@ from .controls import (
     ScalarControlPanel,
 )
 from .earth import EarthObject
-from .frames import horizontal_frame, equatorial_frame
+from .frames import SphericalFrame, horizontal_frame, equatorial_frame
 from .grid import GridLayer, GridStyle
 from .layer import Layer
 from .local_cartoon import LocalCartoonLayer
@@ -287,16 +288,23 @@ class CelestialScene:
         name: str = "equatorial",
         meridians_deg=tuple(np.arange(0, 360, 30)),
         parallels_deg=(-60, -30, 0, 30, 60),
+        major_meridians_deg=(0, 90, 180, 270),
+        major_parallels_deg=(0,),
+        frame: SphericalFrame | None = None,
+        style: GridStyle | None = None,
     ) -> GridLayer:
         return GridLayer(
             name=name,
-            frame=self.equatorial,
+            frame=self.equatorial if frame is None else frame,
             meridians_deg=meridians_deg,
             parallels_deg=parallels_deg,
-            major_meridians_deg=(0, 90, 180, 270),
-            major_parallels_deg=(0,),
+            major_meridians_deg=major_meridians_deg,
+            major_parallels_deg=major_parallels_deg,
             radius=0.988 * self.sphere_radius,
-            style=GridStyle(color=self.style.equatorial_grid_color),
+            style=(
+                GridStyle(color=self.style.equatorial_grid_color)
+                if style is None else style
+            ),
         )
 
     def add_grid_controls(
@@ -367,6 +375,26 @@ class CelestialScene:
             title=title,
             value_range=value_range,
             value_format=value_format,
+        )
+        return self.controls.register_panel(panel)
+
+    def add_choice_control(
+        self,
+        *,
+        set_choice,
+        get_choice,
+        choices: tuple[tuple[str, str], ...],
+        title: str,
+        group: str,
+    ) -> ChoiceControlPanel:
+        """Add a reusable mutually exclusive model-choice control."""
+        panel = ChoiceControlPanel(
+            plotter=self.plotter,
+            set_choice=set_choice,
+            get_choice=get_choice,
+            choices=choices,
+            title=title,
+            group=group,
         )
         return self.controls.register_panel(panel)
 

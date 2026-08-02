@@ -102,6 +102,25 @@ def test_longitude_arc_runs_from_frame_origin_to_hour_circle() -> None:
     )
 
 
+def test_complete_equatorial_circles_contain_target_and_poles() -> None:
+    geometry = make_geometry(longitude_deg=75.0, declination_deg=-20.0)
+
+    hour_points = geometry.hour_circle.points()
+    declination_points = geometry.declination_circle_points
+    assert np.max(hour_points @ geometry.frame.pole) == pytest.approx(2.0, abs=1e-3)
+    assert np.min(hour_points @ geometry.frame.pole) == pytest.approx(-2.0, abs=1e-3)
+    assert np.min(np.linalg.norm(
+        hour_points - geometry.target.display_position,
+        axis=1,
+    )) < 0.04
+    expected_polar_component = 2.0 * np.sin(np.deg2rad(-20.0))
+    np.testing.assert_allclose(
+        declination_points @ geometry.frame.pole,
+        expected_polar_component,
+        atol=1e-12,
+    )
+
+
 def test_diagrammatic_longitude_is_not_called_right_ascension() -> None:
     geometry = make_geometry(longitude_kind="diagrammatic")
 
